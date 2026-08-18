@@ -1,7 +1,7 @@
 # ことば · Vokabeltrainer ARC Kyoto
 
 Privater Vokabeltrainer für Japanisch, gebaut für das iPhone.
-303 Wörter aus Topic 1 bis 3, Karteikarten mit Wiederholung nach Plan,
+457 Wörter aus Topic 1 bis 5, Karteikarten mit Wiederholung nach Plan,
 Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
 
 Läuft ohne Server, ohne Konto und ohne Netz. Alles bleibt auf dem Gerät.
@@ -62,9 +62,17 @@ Alle Wörter stehen in `vokabeln.js`. Eine Zeile hat die Form
 
 ```js
 ["3-2","いずみ","izumi","Quelle","N"],
+["5-3","かします","kashimasu","verleihen","V",1],
 ```
 
-also Abschnitt, Kana, Rōmaji, Bedeutung und Wortart (`N`, `V`, `A` oder leer).
+also Abschnitt, Kana, Rōmaji, Bedeutung und Wortart. Die Wortart ist `N`, `V`,
+`Aい`, `Aな` oder leer. Bei Verben darf ein sechstes Feld die Verbgruppe (1, 2
+oder 3) tragen; sie wird für て-Form-Übungen gebraucht und lässt sich nicht aus
+dem Kana ableiten.
+
+Rōmaji werden mit verdoppelten langen Vokalen geschrieben (`sensee`, `tanjoobi`),
+nicht mit Makron. Kommt ein Wort in mehreren Abschnitten vor, bleibt es dort,
+wo es zuerst eingeführt wurde.
 
 Ein **neues Topic** braucht nur zwei Handgriffe in derselben Datei:
 
