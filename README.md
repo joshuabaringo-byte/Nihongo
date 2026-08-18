@@ -33,7 +33,7 @@ gespeichert. In Safari selbst löscht iOS ihn nach etwa sieben Tagen ohne Besuch
 | Handgriff | Wirkung |
 |---|---|
 | Auf die Karte tippen | Antwort zeigen |
-| **nochmal** | Wort kommt nach vier Karten wieder, zählt als Fehler |
+| **nochmal** | zurück auf Stufe 1, morgen wieder fällig, zählt als Fehler |
 | **sitzt** | eine Stufe weiter |
 | **leicht** | zwei Stufen weiter |
 | Nach links wischen | wie nochmal |
@@ -48,8 +48,8 @@ Am Rechner gehen zusätzlich Leertaste (umdrehen und sitzt) sowie die Tasten 1, 
 
 Sechs Stufen. Nach einer richtigen Antwort ist das Wort wieder fällig nach
 1, 2, 4, 8, 17 und 35 Tagen. Ab Stufe 5 gilt es als gefestigt.
-Ein **nochmal** setzt auf Stufe 1 zurück und legt das Wort in der laufenden
-Sitzung gleich noch einmal vor.
+Ein **nochmal** setzt auf Stufe 1 zurück; das Wort ist damit am nächsten Tag
+wieder fällig und taucht im laufenden Durchgang nicht noch einmal auf.
 
 ## Lernstand sichern
 

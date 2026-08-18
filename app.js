@@ -16,7 +16,6 @@ var K_EINST  = "kotoba-einst";
    damit ein bestehender Lernstand beim Umbenennen nicht verloren geht. */
 var K_FRUEHER       = ["arc-kotoba-v2", "arc-kotoba-v1"];
 var K_EINST_FRUEHER = ["arc-kotoba-einst"];
-var NACHRUECK = 4;                        // nach wie vielen Karten ein "nochmal" wiederkommt
 
 /* ---------- Kleine Helfer ---------- */
 function $(s){ return document.querySelector(s); }
@@ -371,7 +370,7 @@ function zeichneSteuerung(){
   var sLeicht = Math.min(k.stufe + 2, MAXSTUFE);
   ziel.innerHTML =
       '<div class="knoepfe">'
-    + '<button class="tap nochmal" data-note="nochmal"><span class="gross">nochmal</span><span class="klein">gleich</span></button>'
+    + '<button class="tap nochmal" data-note="nochmal"><span class="gross">nochmal</span><span class="klein">' + tage(STUFEN[1]) + '</span></button>'
     + '<button class="tap gut" data-note="gut"><span class="gross">sitzt</span><span class="klein">' + tage(STUFEN[sGut]) + "</span></button>"
     + '<button class="tap leicht" data-note="leicht"><span class="gross">leicht</span><span class="klein">' + tage(STUFEN[sLeicht]) + "</span></button>"
     + "</div>";
@@ -395,25 +394,6 @@ function umdrehen(){
   if(einst.ton) sprich(schlange[0].kana, tk);
 }
 
-/* Ein "nochmal" soll erst nach einigen anderen Karten wiederkommen. Ist die
-   Schlange dafuer zu kurz, wird sie aus den uebrigen faelligen Woertern
-   aufgefuellt. Sonst stand dasselbe Wort am Ende eines Durchgangs sofort
-   wieder da - mit der Antwort noch auf dem Bildschirm davor. */
-function nachruecken(v){
-  if(schlange.length < NACHRUECK){
-    var drin = {};
-    drin[v.id] = true;
-    schlange.forEach(function(x){ drin[x.id] = true; });
-    var pool = freiesUeben ? auswahl() : faelligeAus(auswahl());
-    var nachschub = pool.filter(function(x){ return !drin[x.id]; });
-    if(einst.mischen) mische(nachschub);
-    else nachschub.sort(function(a, b){ return karte(a.id).faellig - karte(b.id).faellig; });
-    while(schlange.length < NACHRUECK && nachschub.length) schlange.push(nachschub.shift());
-  }
-  if(!schlange.length) return;   // nichts anderes mehr da, der Durchgang endet
-  schlange.splice(Math.min(NACHRUECK, schlange.length), 0, v);
-}
-
 function bewerte(note){
   if(!schlange.length || !umgedreht) return;
   var v = schlange[0], k = karteSchreiben(v.id);
@@ -421,15 +401,12 @@ function bewerte(note){
   if(note === "nochmal"){
     k.fehler += 1;
     k.stufe   = 1;
-    k.faellig = Date.now() + STUFEN[1] * TAG;
-    schlange.shift();
-    nachruecken(v);
   }else{
     k.stufe   = Math.min(k.stufe + (note === "leicht" ? 2 : 1), MAXSTUFE);
-    k.faellig = Date.now() + STUFEN[k.stufe] * TAG;
-    schlange.shift();
-    getan += 1;
   }
+  k.faellig = Date.now() + STUFEN[k.stufe] * TAG;
+  schlange.shift();
+  getan += 1;
 
   standSichern();
   kopfAktualisieren();
