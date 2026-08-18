@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="de" data-thema="auto">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<title>ことば · Vokabeltrainer</title>
+<meta name="description" content="Privater Vokabeltrainer für Japanisch, ARC Kyoto Topic 1 bis 3.">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ことば">
+<meta name="theme-color" content="#2E6B54" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141D18" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png" sizes="192x192">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<!-- Symbolvorrat -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <g id="i-lernen" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="6" width="14" height="14" rx="2.5"/>
+      <path d="M7 3h11a2.5 2.5 0 0 1 2.5 2.5V16"/>
+    </g>
+    <g id="i-stand" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 20V11M10 20V4M16 20v-6M22 20H2"/>
+    </g>
+    <g id="i-problem" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 3.5 21.5 20H2.5L12 3.5Z"/><path d="M12 10v4"/><path d="M12 17.2v.1"/>
+    </g>
+    <g id="i-liste" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 6h12M9 12h12M9 18h12M4 6h.01M4 12h.01M4 18h.01"/>
+    </g>
+    <g id="i-zahnrad" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3.2"/>
+      <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/>
+    </g>
+    <g id="i-zu" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <path d="M6 6l12 12M18 6L6 18"/>
+    </g>
+    <g id="i-lupe" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>
+    </g>
+    <g id="i-ton" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M11 5 6.5 9H3v6h3.5L11 19V5Z"/>
+      <path d="M15 9.2a4 4 0 0 1 0 5.6"/>
+      <path d="M17.8 6.4a8 8 0 0 1 0 11.2"/>
+    </g>
+  </defs>
+</svg>
+
+<header class="kopf">
+  <div class="inner">
+    <div class="marke">
+      <b class="jp">ことば</b>
+      <span>ARC Kyoto</span>
+    </div>
+    <div class="luecke"></div>
+    <div class="zaehler" id="zaehler"><i class="punkt"></i><span id="zaehlerText">–</span></div>
+    <button class="rund" id="knopfEinstellungen" aria-label="Einstellungen">
+      <svg viewBox="0 0 24 24"><use href="#i-zahnrad"/></svg>
+    </button>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ===== Lernen ===== -->
+  <section id="lernen" aria-label="Lernen">
+    <div class="chipreihe nichtdrucken" id="filterreihe"></div>
+    <div class="segment nichtdrucken" role="group" aria-label="Abfragerichtung">
+      <button id="rtgKana" aria-pressed="true" data-rtg="kana"><span class="jp">かな</span> → Deutsch</button>
+      <button id="rtgDe" aria-pressed="false" data-rtg="de">Deutsch → <span class="jp">かな</span></button>
+    </div>
+    <div class="sitzung nichtdrucken" id="sitzungsleiste" hidden>
+      <span id="sitzungText">0</span>
+      <span class="spur"><i id="sitzungBalken" style="width:0%"></i></span>
+      <span id="sitzungRest">0</span>
+    </div>
+    <div id="kartenbereich"></div>
+  </section>
+
+  <!-- ===== Stand ===== -->
+  <section id="stand" hidden aria-label="Fortschritt">
+    <div class="kacheln" id="kacheln"></div>
+    <div id="standListe"></div>
+  </section>
+
+  <!-- ===== Problemwörter ===== -->
+  <section id="problem" hidden aria-label="Problemwörter">
+    <h3>Problemwörter</h3>
+    <div class="info nichtdrucken">
+      Wörter, die du mindestens zweimal auf <b>nochmal</b> gesetzt hast, sortiert nach Häufigkeit.
+      Zum Ausdrucken bei 7-Eleven über Teilen → Drucken; dann landet nur diese Liste auf dem Papier.
+    </div>
+    <div id="problemListe"></div>
+  </section>
+
+  <!-- ===== Liste ===== -->
+  <section id="liste" hidden aria-label="Wortliste">
+    <div class="suche nichtdrucken">
+      <svg viewBox="0 0 24 24"><use href="#i-lupe"/></svg>
+      <input id="sucheFeld" type="search" inputmode="search" autocomplete="off"
+             spellcheck="false" placeholder="Kana, Rōmaji oder Bedeutung suchen">
+    </div>
+    <div id="vollListe"></div>
+  </section>
+
+  <p class="fuss">ARC Kyoto · Topic 1 bis 3 · <span id="anzahlGesamt"></span> Wörter</p>
+</main>
+
+<nav class="leiste nichtdrucken" role="tablist" aria-label="Bereiche">
+  <div class="inner">
+    <button role="tab" data-ziel="lernen" aria-selected="true">
+      <svg viewBox="0 0 24 24"><use href="#i-lernen"/></svg>Lernen
+    </button>
+    <button role="tab" data-ziel="stand" aria-selected="false">
+      <svg viewBox="0 0 24 24"><use href="#i-stand"/></svg>Stand
+    </button>
+    <button role="tab" data-ziel="problem" aria-selected="false">
+      <svg viewBox="0 0 24 24"><use href="#i-problem"/></svg>Problem
+      <span class="kringel" id="problemKringel" hidden>0</span>
+    </button>
+    <button role="tab" data-ziel="liste" aria-selected="false">
+      <svg viewBox="0 0 24 24"><use href="#i-liste"/></svg>Liste
+    </button>
+  </div>
+</nav>
+
+<!-- ===== Einstellungsblatt ===== -->
+<div class="blattgrund" id="blattgrund"></div>
+<div class="blatt" id="blatt" role="dialog" aria-modal="true" aria-label="Einstellungen">
+  <div class="griff"></div>
+  <div class="blattkopf">
+    <h2>Einstellungen</h2>
+    <button class="schliessen" id="blattZu" aria-label="Schließen">
+      <svg viewBox="0 0 24 24"><use href="#i-zu"/></svg>
+    </button>
+  </div>
+  <div class="inhalt">
+
+    <h3>Darstellung</h3>
+    <div class="segment" role="group" aria-label="Farbschema">
+      <button data-thema="hell" aria-pressed="false">Hell</button>
+      <button data-thema="auto" aria-pressed="true">Automatisch</button>
+      <button data-thema="dunkel" aria-pressed="false">Dunkel</button>
+    </div>
+
+    <h3>Abfrage</h3>
+    <div class="opt">
+      <span class="beschriftung">
+        <b>Rōmaji zeigen</b>
+        <span>Umschrift auf der Rückseite der Karte</span>
+      </span>
+      <button class="schalter" role="switch" id="schalterRomaji" aria-checked="true" aria-label="Rōmaji zeigen"></button>
+    </div>
+    <div class="opt">
+      <span class="beschriftung">
+        <b>Aussprache vorlesen</b>
+        <span>Japanische Stimme des iPhones, automatisch beim Umdrehen</span>
+      </span>
+      <button class="schalter" role="switch" id="schalterTon" aria-checked="false" aria-label="Aussprache vorlesen"></button>
+    </div>
+    <div class="opt">
+      <span class="beschriftung">
+        <b>Reihenfolge mischen</b>
+        <span>Sonst kommen die am längsten fälligen Wörter zuerst</span>
+      </span>
+      <button class="schalter" role="switch" id="schalterMischen" aria-checked="true" aria-label="Reihenfolge mischen"></button>
+    </div>
+    <div class="opt">
+      <span class="beschriftung">
+        <b>Tageslimit</b>
+        <span id="limitText">Höchstens 40 Karten pro Durchgang</span>
+      </span>
+      <button class="knopf" id="limitKnopf" style="width:auto;margin:0;padding:9px 14px">40</button>
+    </div>
+
+    <h3>Lernstand sichern</h3>
+    <div class="info">
+      Auf dem Homebildschirm gespeichert bleibt der Stand dauerhaft erhalten. In Safari selbst
+      löscht iOS ihn nach etwa sieben Tagen ohne Besuch. Sichere ihn ab und zu über den Knopf unten.
+    </div>
+    <textarea id="exportFeld" spellcheck="false" autocapitalize="off" autocorrect="off"
+              aria-label="Gesicherter Lernstand"></textarea>
+    <button class="knopf voll" id="knopfKopieren">Stand kopieren</button>
+    <button class="knopf" id="knopfLaden">Eingefügten Stand laden</button>
+    <button class="knopf warn" id="knopfReset">Alles zurücksetzen</button>
+
+    <h3>Über</h3>
+    <p style="font-size:.8rem;color:var(--grau);line-height:1.6;padding-bottom:8px">
+      <span id="ueberZahl"></span> Wörter aus Topic 1 bis 3.
+      Wiederholung nach 1, 2, 4, 8, 17 und 35 Tagen.
+      Zum Installieren in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b> tippen.
+    </p>
+  </div>
+</div>
+
+<div class="meldung" id="meldung" role="status" aria-live="polite"></div>
+
+<script src="vokabeln.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

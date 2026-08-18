@@ -1,0 +1,19 @@
+{
+  "name": "ことば · Vokabeltrainer ARC Kyoto",
+  "short_name": "ことば",
+  "description": "Privater Vokabeltrainer für Japanisch, ARC Kyoto Topic 1 bis 3.",
+  "lang": "de",
+  "dir": "ltr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EDF0EA",
+  "theme_color": "#2E6B54",
+  "categories": ["education"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
