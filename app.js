@@ -133,7 +133,8 @@ function schlangeBauen(alleTrotzdem){
   if(einst.mischen) mische(liste);
   else liste.sort(function(a, b){ return karte(a.id).faellig - karte(b.id).faellig; });
 
-  // Neue Wörter gleichmäßig unter die Wiederholungen mischen, nicht alle am Anfang
+  // Wiederholungen zuerst, neue Wörter danach - sonst verdrängt der Nachschub
+  // an Unbekanntem die Wörter, die gerade festgehalten werden wollen.
   if(einst.mischen){
     liste.sort(function(a, b){ return (karte(a.id).stufe === 0) - (karte(b.id).stufe === 0); });
   }
@@ -352,6 +353,25 @@ function umdrehen(){
   if(einst.ton) sprich(schlange[0].kana, tk);
 }
 
+/* Ein "nochmal" soll erst nach einigen anderen Karten wiederkommen. Ist die
+   Schlange dafuer zu kurz, wird sie aus den uebrigen faelligen Woertern
+   aufgefuellt. Sonst stand dasselbe Wort am Ende eines Durchgangs sofort
+   wieder da - mit der Antwort noch auf dem Bildschirm davor. */
+function nachruecken(v){
+  if(schlange.length < NACHRUECK){
+    var drin = {};
+    drin[v.id] = true;
+    schlange.forEach(function(x){ drin[x.id] = true; });
+    var pool = freiesUeben ? auswahl() : faelligeAus(auswahl());
+    var nachschub = pool.filter(function(x){ return !drin[x.id]; });
+    if(einst.mischen) mische(nachschub);
+    else nachschub.sort(function(a, b){ return karte(a.id).faellig - karte(b.id).faellig; });
+    while(schlange.length < NACHRUECK && nachschub.length) schlange.push(nachschub.shift());
+  }
+  if(!schlange.length) return;   // nichts anderes mehr da, der Durchgang endet
+  schlange.splice(Math.min(NACHRUECK, schlange.length), 0, v);
+}
+
 function bewerte(note){
   if(!schlange.length || !umgedreht) return;
   var v = schlange[0], k = karteSchreiben(v.id);
@@ -361,7 +381,7 @@ function bewerte(note){
     k.stufe   = 1;
     k.faellig = Date.now() + STUFEN[1] * TAG;
     schlange.shift();
-    schlange.splice(Math.min(NACHRUECK, schlange.length), 0, v);   // kommt bald noch einmal
+    nachruecken(v);
   }else{
     k.stufe   = Math.min(k.stufe + (note === "leicht" ? 2 : 1), MAXSTUFE);
     k.faellig = Date.now() + STUFEN[k.stufe] * TAG;
