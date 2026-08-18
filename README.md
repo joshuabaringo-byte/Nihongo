@@ -65,8 +65,22 @@ Alle Wörter stehen in `vokabeln.js`. Eine Zeile hat die Form
 ```
 
 also Abschnitt, Kana, Rōmaji, Bedeutung und Wortart (`N`, `V`, `A` oder leer).
-Neue Abschnitte kommen oben in `ABSCHNITTE` dazu. Nach einer Änderung in
-`sw.js` die `VERSION` hochzählen, damit die installierte App die neue Fassung lädt.
+
+Ein **neues Topic** braucht nur zwei Handgriffe in derselben Datei:
+
+```js
+// 1. Abschnitte oben in ABSCHNITTE eintragen
+"4-1": { t: 4, nr: "§1", titel: "Titel des Abschnitts" },
+
+// 2. Wörter unten in ROH ergänzen
+["4-1","ことば","kotoba","Wort","N"],
+```
+
+Filterleiste, Fortschritt, Wortliste und Fußzeile ziehen von allein nach — die
+App liest die vorhandenen Topics aus den Daten, nichts ist fest verdrahtet.
+
+Nach jeder Änderung in `sw.js` die `VERSION` hochzählen, damit die installierte
+App die neue Fassung lädt.
 
 ## Dateien
 
@@ -75,6 +89,6 @@ Neue Abschnitte kommen oben in `ABSCHNITTE` dazu. Nach einer Änderung in
 | `index.html` | Aufbau der Seite |
 | `app.css` | Gestaltung, hell und dunkel |
 | `app.js` | Karteikarten, Wiederholungsplan, Speicherung |
-| `vokabeln.js` | die 303 Wörter |
+| `vokabeln.js` | die Wörter und die Abschnitte |
 | `sw.js` | Offlinebetrieb |
 | `manifest.webmanifest` | Angaben für den Home-Bildschirm |

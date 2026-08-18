@@ -231,7 +231,7 @@ function kopfAktualisieren(){
 function filterListe(){
   var f = [{ art: "alle", wert: 0 }];
   if(V.filter(istProblem).length) f.push({ art: "problem", wert: 0 });
-  [1, 2, 3].forEach(function(t){ f.push({ art: "topic", wert: t }); });
+  TOPICS.forEach(function(t){ f.push({ art: "topic", wert: t }); });
   Object.keys(ABSCHNITTE).forEach(function(a){ f.push({ art: "ab", wert: a }); });
   return f;
 }
@@ -440,7 +440,7 @@ function zeichneStand(){
     + '<div class="kachel a"><b>' + offen     + "</b><span>fällig</span></div>";
 
   var html = "";
-  [1, 2, 3].forEach(function(t){
+  TOPICS.forEach(function(t){
     html += "<h3>Topic " + t + "</h3>";
     Object.keys(ABSCHNITTE).filter(function(a){ return ABSCHNITTE[a].t === t; }).forEach(function(a){
       var w = V.filter(function(v){ return v.ab === a; });
@@ -449,8 +449,8 @@ function zeichneStand(){
         var s = karte(v.id).stufe;
         if(s >= FEST) fest++; else if(s > 0) lernt++;
       });
-      var pF = Math.round(fest / w.length * 100);
-      var pL = Math.round(lernt / w.length * 100);
+      var pF = w.length ? Math.round(fest  / w.length * 100) : 0;
+      var pL = w.length ? Math.round(lernt / w.length * 100) : 0;
       html +=
           '<button class="reihe" data-ab="' + a + '">'
         +   '<span class="kopfzeile"><span class="titel"><em>' + ABSCHNITTE[a].nr + "</em>"
@@ -516,7 +516,7 @@ function zeichneListe(){
     return;
   }
   var html = "";
-  [1, 2, 3].forEach(function(t){
+  TOPICS.forEach(function(t){
     html += "<h3>Topic " + t + "</h3>";
     Object.keys(ABSCHNITTE).filter(function(a){ return ABSCHNITTE[a].t === t; }).forEach(function(a){
       html += "<h2>" + ABSCHNITTE[a].nr + " " + esc(ABSCHNITTE[a].titel) + "</h2>"
@@ -716,8 +716,13 @@ function verdrahten(){
 /* ---------- Start ---------- */
 function start(){
   document.documentElement.setAttribute("data-thema", einst.thema);
+  var spanne = TOPICS.length > 1
+    ? "Topic " + TOPICS[0] + " bis " + TOPICS[TOPICS.length - 1]
+    : "Topic " + TOPICS[0];
   $("#anzahlGesamt").textContent = V.length;
   $("#ueberZahl").textContent    = V.length;
+  $("#topicSpanne").textContent  = spanne;
+  $("#ueberSpanne").textContent  = spanne;
   $("#rtgKana").setAttribute("aria-pressed", einst.richtung === "kana" ? "true" : "false");
   $("#rtgDe").setAttribute("aria-pressed",   einst.richtung === "de"   ? "true" : "false");
 

@@ -1,7 +1,7 @@
 {
   "name": "ことば · Vokabeltrainer ARC Kyoto",
   "short_name": "ことば",
-  "description": "Privater Vokabeltrainer für Japanisch, ARC Kyoto Topic 1 bis 3.",
+  "description": "Privater Vokabeltrainer für Japanisch, ARC Kyoto.",
   "lang": "de",
   "dir": "ltr",
   "start_url": "./",

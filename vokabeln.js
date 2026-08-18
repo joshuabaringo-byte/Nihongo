@@ -342,3 +342,11 @@ const V = ROH.map(r => ({
   de: r[3],
   wa: r[4]
 }));
+
+/* Vorhandene Topics, aus ABSCHNITTE abgeleitet. Für ein neues Topic genügen
+   deshalb ein Eintrag oben in ABSCHNITTE und die Wörter in ROH - die App
+   zieht Filter, Fortschritt und Listen von allein nach. */
+const TOPICS = Object.keys(ABSCHNITTE)
+  .map(function(a){ return ABSCHNITTE[a].t; })
+  .filter(function(t, i, alle){ return alle.indexOf(t) === i; })
+  .sort(function(a, b){ return a - b; });
