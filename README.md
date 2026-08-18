@@ -40,6 +40,7 @@ gespeichert. In Safari selbst löscht iOS ihn nach etwa sieben Tagen ohne Besuch
 | Nach rechts wischen | wie sitzt |
 | Auf ein Wort in den Listen tippen | Aussprache anhören |
 | Auf einen Abschnitt unter *Stand* tippen | genau diesen Abschnitt üben |
+| Auf die Auswahlzeile über der Karte tippen | Topic oder Abschnitt wählen |
 
 Am Rechner gehen zusätzlich Leertaste (umdrehen und sitzt) sowie die Tasten 1, 2 und 3.
 

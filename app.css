@@ -272,28 +272,57 @@ h3:first-child{margin-top:2px;}
 }
 
 /* ---------- 6. Filterchips ---------- */
-.chipreihe{
-  display:flex;gap:7px;
-  overflow-x:auto;scrollbar-width:none;
-  margin:0 -16px 12px;padding:2px 16px 8px;
-  scroll-snap-type:x proximity;
+/* Auswahlknopf: ersetzt die frühere Chipreihe. Die Abschnitte wuchsen auf
+   19 Chips und fast fünf Bildschirmbreiten, das war nicht mehr zu überblicken. */
+.filterknopf{
+  width:100%;display:flex;align-items:center;gap:10px;
+  background:var(--flaeche);border:1px solid var(--linie-stark);
+  border-radius:var(--r-m);padding:12px 14px;margin-bottom:12px;
+  box-shadow:var(--schatten-s);text-align:left;
+  transition:background .15s;
 }
-.chipreihe::-webkit-scrollbar{display:none;}
-.chip{
-  flex:none;scroll-snap-align:start;
-  border:1px solid var(--linie-stark);
-  background:var(--flaeche);
-  border-radius:999px;
-  padding:7px 14px;
-  font-size:.82rem;font-weight:600;color:var(--text-2);
-  white-space:nowrap;
-  transition:background .15s, color .15s, border-color .15s;
+.filterknopf:active{background:var(--flaeche-2);}
+.filterknopf .fname{
+  flex:1;min-width:0;font-size:.95rem;font-weight:600;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
-.chip[aria-pressed="true"]{
-  background:var(--akzent);color:var(--akzent-text);border-color:var(--akzent);
+.filterknopf .fzahl{
+  flex:none;font-size:.78rem;font-weight:600;color:var(--grau);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
 }
-.chip:active{transform:scale(.97);}
-.chip .n{opacity:.6;font-weight:500;margin-left:4px;font-variant-numeric:tabular-nums;}
+.filterknopf svg{flex:none;width:15px;height:15px;color:var(--grau);}
+
+/* Zeilen im Auswahlblatt */
+.fgruppe{
+  font-size:.68rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--grau);margin:20px 0 8px;
+  display:flex;align-items:center;gap:10px;
+}
+.fgruppe::after{content:"";flex:1;height:1px;background:var(--linie);}
+.fzeile{
+  width:100%;display:flex;align-items:baseline;gap:10px;
+  background:var(--flaeche);border:1px solid var(--linie);
+  border-radius:var(--r-m);padding:12px 14px;margin-bottom:6px;text-align:left;
+}
+.fzeile:active{background:var(--flaeche-2);}
+.fzeile[aria-current="true"]{
+  border-color:var(--akzent);
+  background:color-mix(in srgb, var(--akzent) 11%, var(--flaeche));
+}
+@supports not (background: color-mix(in srgb, red 50%, blue)){
+  .fzeile[aria-current="true"]{background:var(--flaeche-2);}
+}
+.fzeile.unter{margin-left:16px;}
+.fzeile .fnr{
+  flex:none;font-size:.76rem;font-weight:700;color:var(--grau);min-width:1.7em;
+}
+.fzeile[aria-current="true"] .fnr{color:var(--akzent);}
+.fzeile .ftitel{flex:1;min-width:0;font-size:.92rem;font-weight:600;line-height:1.35;}
+.fzeile .fzahl{
+  flex:none;font-size:.78rem;font-weight:600;color:var(--grau);
+  font-variant-numeric:tabular-nums;
+}
+.fzeile .fzahl.offen{color:var(--akzent);}
 
 .segment{
   display:flex;background:var(--bg-2);
@@ -645,7 +674,7 @@ textarea{
 
 /* ---------- 12. Drucken ---------- */
 @media print{
-  .kopf,.leiste,.chipreihe,.segment,.knoepfe,.umdrehknopf,.sitzung,
+  .kopf,.leiste,.filterknopf,.segment,.knoepfe,.umdrehknopf,.sitzung,
   .info,.suche,.nichtdrucken,.blatt,.blattgrund,.meldung,.tonknopf{display:none !important;}
   html,body{background:#fff;color:#000;font-size:10.5pt;}
   main{padding:0;}

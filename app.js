@@ -119,11 +119,14 @@ function auswahl(f){
 }
 function faelligeAus(liste){ return liste.filter(istFaellig); }
 
-function filterName(f){
-  if(f.art === "topic")   return "Topic " + f.wert;
-  if(f.art === "ab")      return "T" + ABSCHNITTE[f.wert].t + " " + ABSCHNITTE[f.wert].nr;
+function filterName(f, lang){
+  if(f.art === "topic")   return "Ganzes Topic " + f.wert;
+  if(f.art === "ab"){
+    var a = ABSCHNITTE[f.wert], kurz = "T" + a.t + " " + a.nr;
+    return lang ? kurz + " · " + a.titel : kurz;
+  }
   if(f.art === "problem") return "Problemwörter";
-  return "Alle";
+  return "Alle Wörter";
 }
 function gleicherFilter(a, b){ return a.art === b.art && String(a.wert) === String(b.wert); }
 
@@ -244,7 +247,7 @@ function kopfAktualisieren(){
   kringel.textContent = problemZahl > 99 ? "99+" : problemZahl;
 }
 
-/* ---------- Filterchips ---------- */
+/* ---------- Auswahl ---------- */
 function filterListe(){
   var f = [{ art: "alle", wert: 0 }];
   if(V.filter(istProblem).length) f.push({ art: "problem", wert: 0 });
@@ -252,17 +255,42 @@ function filterListe(){
   Object.keys(ABSCHNITTE).forEach(function(a){ f.push({ art: "ab", wert: a }); });
   return f;
 }
+
 function zeichneFilter(){
-  var ziel = $("#filterreihe");
-  ziel.innerHTML = filterListe().map(function(f, i){
-    var offen = faelligeAus(auswahl(f)).length;
-    return '<button class="chip" data-i="' + i + '" aria-pressed="'
-      + (gleicherFilter(f, einst.filter) ? "true" : "false") + '">'
-      + esc(filterName(f))
-      + (offen ? '<span class="n">' + offen + "</span>" : "")
+  var liste = filterListe();
+
+  var offen = faelligeAus(auswahl()).length;
+  $("#filterName").textContent = filterName(einst.filter, true);
+  $("#filterZahl").textContent = offen ? offen + " fällig" : "fertig";
+
+  function zeile(i, klasse, nr, titel){
+    var f = liste[i];
+    var n = faelligeAus(auswahl(f)).length;
+    return '<button class="fzeile' + (klasse ? " " + klasse : "") + '" data-i="' + i + '"'
+      + ' aria-current="' + (gleicherFilter(f, einst.filter) ? "true" : "false") + '">'
+      + (nr ? '<span class="fnr">' + esc(nr) + "</span>" : "")
+      + '<span class="ftitel">' + esc(titel) + "</span>"
+      + '<span class="fzahl' + (n ? " offen" : "") + '">' + (n ? n : "–") + "</span>"
       + "</button>";
-  }).join("");
+  }
+
+  var h = "";
+  liste.forEach(function(f, i){
+    if(f.art === "alle")    h += zeile(i, "", "", "Alle Wörter");
+    if(f.art === "problem") h += zeile(i, "", "", "Problemwörter");
+  });
+  TOPICS.forEach(function(t){
+    h += '<div class="fgruppe">Topic ' + t + "</div>";
+    liste.forEach(function(f, i){
+      if(f.art === "topic" && f.wert === t)
+        h += zeile(i, "", "", "Ganzes Topic " + t);
+      if(f.art === "ab" && ABSCHNITTE[f.wert].t === t)
+        h += zeile(i, "unter", ABSCHNITTE[f.wert].nr, ABSCHNITTE[f.wert].titel);
+    });
+  });
+  $("#filterliste").innerHTML = h;
 }
+
 function setzeFilter(f){
   einst.filter = f;
   einstSichern();
@@ -270,8 +298,6 @@ function setzeFilter(f){
   schlangeBauen(false);
   zeichneLernen();
   kopfAktualisieren();
-  var aktiv = $('#filterreihe .chip[aria-pressed="true"]');
-  if(aktiv && aktiv.scrollIntoView) aktiv.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" });
 }
 
 /* ---------- Lernansicht ---------- */
@@ -572,15 +598,15 @@ function themaSetzen(t){
   });
 }
 
-/* ---------- Einstellungsblatt ---------- */
-function blattAuf(){
-  zeichneStand();
+/* ---------- Blätter von unten ---------- */
+function blattAuf(sel){
+  if(sel === "#blatt") zeichneStand();      // Sicherungsfeld frisch befüllen
   $("#blattgrund").classList.add("auf");
-  $("#blatt").classList.add("auf");
+  $(sel).classList.add("auf");
 }
 function blattZu(){
   $("#blattgrund").classList.remove("auf");
-  $("#blatt").classList.remove("auf");
+  $$(".blatt").forEach(function(b){ b.classList.remove("auf"); });
 }
 function schalter(id, feld, danach){
   var b = $(id);
@@ -653,10 +679,13 @@ function verdrahten(){
     b.addEventListener("click", function(){ zeige(b.dataset.ziel); });
   });
 
-  $("#filterreihe").addEventListener("click", function(e){
-    var chip = e.target.closest(".chip");
-    if(!chip) return;
-    setzeFilter(filterListe()[+chip.dataset.i]);
+  $("#filterKnopf").addEventListener("click", function(){ blattAuf("#filterblatt"); });
+  $("#filterblattZu").addEventListener("click", blattZu);
+  $("#filterliste").addEventListener("click", function(e){
+    var z = e.target.closest(".fzeile");
+    if(!z) return;
+    setzeFilter(filterListe()[+z.dataset.i]);
+    blattZu();
   });
 
   $$(".segment [data-rtg]").forEach(function(b){
@@ -698,7 +727,7 @@ function verdrahten(){
     suchUhr = setTimeout(zeichneListe, 120);
   });
 
-  $("#knopfEinstellungen").addEventListener("click", blattAuf);
+  $("#knopfEinstellungen").addEventListener("click", function(){ blattAuf("#blatt"); });
   $("#blattZu").addEventListener("click", blattZu);
   $("#blattgrund").addEventListener("click", blattZu);
 
