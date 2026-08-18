@@ -6,15 +6,18 @@ Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
 
 Läuft ohne Server, ohne Konto und ohne Netz. Alles bleibt auf dem Gerät.
 
-## Veröffentlichung
+## Einmalig einschalten
 
-Die Aktion unter `.github/workflows/pages.yml` schaltet GitHub Pages beim ersten
-Lauf selbst ein und stellt die Seite danach bei jedem Push neu bereit. Die
-Adresse lautet `https://joshuabaringo-byte.github.io/Nihongo/`.
+Ein Handgriff ist nötig, danach läuft alles von allein. Eine Aktion darf
+GitHub Pages nicht selbst erstmalig aktivieren.
 
-Sollte der Lauf an fehlenden Rechten scheitern, hilft ein Griff von Hand:
-**Settings → Pages → Build and deployment → Source** auf **GitHub Actions**
-stellen und den Lauf unter **Actions** erneut starten.
+1. **Settings → Pages** öffnen.
+2. Unter **Build and deployment → Source** den Eintrag **GitHub Actions** wählen.
+3. Auf den Reiter **Actions** wechseln, den letzten Lauf öffnen und
+   **Re-run all jobs** drücken.
+
+Danach steht die Seite unter `https://joshuabaringo-byte.github.io/Nihongo/`
+und wird bei jedem weiteren Push neu gebaut.
 
 ## Auf dem iPhone einrichten
 

@@ -25,10 +25,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Setzt voraus, dass unter Settings -> Pages als Source einmal
+      # "GitHub Actions" gewaehlt wurde. Selbst einschalten darf die
+      # Aktion es nicht, dafuer reicht das Recht ihres Tokens nicht.
       - uses: actions/configure-pages@v5
-        # schaltet GitHub Pages beim ersten Lauf selbst ein
-        with:
-          enablement: true
       - uses: actions/upload-pages-artifact@v3
         with:
           path: .
