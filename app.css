@@ -1,46 +1,49 @@
 /* ==================================================================
    ことば - Vokabeltrainer
-   Design: Washi-Papier, Kiefergrün, Ai-Indigo. Hell und dunkel.
+   Design "Papier": Flaechen statt Rahmen, Schatten nur wo etwas schwebt,
+   ein Gruen als einzige tragende Farbe. Hell und dunkel.
    ================================================================== */
 
 /* ---------- 1. Farben und Grundwerte ---------- */
 :root{
-  --gruen:#2E6B54;
-  --gruen-tief:#255846;
-  --gruen-hell:#4A8C72;
-  --indigo:#23406B;
-  --amber:#C9A567;
-  --rot:#A6392F;
+  --gruen:#1F6F4F;
+  --gruen-tief:#18583F;
+  --gruen-hell:#3E9169;
+  --indigo:#2A5449;
+  --amber:#9A7B2E;
+  --rot:#8E3826;
+  --rot-weich:#F0DEDA;
 
-  --bg:#EDF0EA;
-  --bg-2:#E4E9E1;
-  --flaeche:#FCFDFB;
-  --flaeche-2:#F4F7F2;
-  --linie:#DBE2DA;
-  --linie-stark:#C3CDC2;
-  --text:#1B2620;
-  --text-2:#4C5A52;
-  --grau:#6E7C73;
+  --bg:#F1F3EE;
+  --bg-2:#E5EAE3;
+  --flaeche:#FFFFFF;
+  --flaeche-2:#ECF0EA;
+  --linie:#E2E7DF;
+  --linie-stark:#CFD7CB;
+  --text:#131C17;
+  --text-2:#414B45;
+  --grau:#8A968F;
 
   --akzent:var(--gruen);
   --akzent-text:#fff;
   --auf-gruen:#fff;
-  --info-bg:#F6EAD2;
-  --info-text:#5B4520;
-  --info-rand:#C9A567;
+  --info-bg:#EDE6D6;
+  --info-text:#57492A;
+  --info-rand:#C4AF83;
 
-  --kopf-bg:var(--gruen);
-  --kopf-text:#fff;
-  --kopf-schwach:rgba(255,255,255,.72);
+  --kopf-bg:var(--bg);
+  --kopf-text:var(--text);
+  --kopf-schwach:var(--grau);
 
-  --schatten-s:0 1px 2px rgba(27,38,32,.06), 0 2px 6px rgba(27,38,32,.05);
-  --schatten-m:0 2px 4px rgba(27,38,32,.05), 0 8px 24px rgba(27,38,32,.09);
-  --schatten-gross:0 4px 10px rgba(27,38,32,.07), 0 18px 50px rgba(27,38,32,.14);
+  /* Schatten hat nur, was wirklich schwebt: Karte, Blaetter, Meldung. */
+  --schatten-s:none;
+  --schatten-m:0 10px 30px rgba(19,28,23,.07);
+  --schatten-gross:0 6px 16px rgba(19,28,23,.10), 0 26px 60px rgba(19,28,23,.17);
 
-  --r-s:10px;
-  --r-m:14px;
-  --r-l:20px;
-  --r-xl:26px;
+  --r-s:12px;
+  --r-m:18px;
+  --r-l:26px;
+  --r-xl:30px;
 
   --jp:"Hiragino Kaku Gothic ProN","Hiragino Sans","Zen Kaku Gothic New","Noto Sans JP",system-ui,sans-serif;
   --ui:-apple-system,BlinkMacSystemFont,"Zen Kaku Gothic New","Segoe UI",system-ui,sans-serif;
@@ -53,72 +56,74 @@
 }
 
 :root[data-thema="dunkel"]{
-  --gruen:#5FAE8C;
-  --gruen-tief:#4A8C72;
-  --gruen-hell:#78C3A2;
+  --gruen:#57B389;
+  --gruen-tief:#3E8E68;
+  --gruen-hell:#74C7A1;
   --indigo:#8FB0DF;
-  --amber:#DBB979;
-  --rot:#DE7C6E;
+  --amber:#CFAE6E;
+  --rot:#DE8874;
+  --rot-weich:#2E1D19;
 
-  --bg:#0E1512;
-  --bg-2:#131B17;
-  --flaeche:#1A231E;
-  --flaeche-2:#212C26;
-  --linie:#2B372F;
-  --linie-stark:#3B4941;
-  --text:#E7EDE8;
-  --text-2:#B4C0B8;
-  --grau:#8B9A91;
+  --bg:#121513;
+  --bg-2:#1B201D;
+  --flaeche:#1D231F;
+  --flaeche-2:#262D28;
+  --linie:#2A322D;
+  --linie-stark:#3A443E;
+  --text:#E8EDE9;
+  --text-2:#B5BEB8;
+  --grau:#87938C;
 
   --akzent:var(--gruen);
-  --akzent-text:#0E1512;
-  --auf-gruen:#0E1512;
-  --info-bg:#2A2317;
-  --info-text:#E4CFA4;
-  --info-rand:#8A6F3C;
+  --akzent-text:#0C110E;
+  --auf-gruen:#0C110E;
+  --info-bg:#282316;
+  --info-text:#E0CFA6;
+  --info-rand:#83703F;
 
-  --kopf-bg:#141D18;
-  --kopf-text:#E7EDE8;
-  --kopf-schwach:rgba(231,237,232,.62);
+  --kopf-bg:var(--bg);
+  --kopf-text:var(--text);
+  --kopf-schwach:var(--grau);
 
-  --schatten-s:0 1px 2px rgba(0,0,0,.4);
-  --schatten-m:0 2px 6px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.34);
-  --schatten-gross:0 6px 14px rgba(0,0,0,.42), 0 22px 56px rgba(0,0,0,.46);
+  --schatten-s:none;
+  --schatten-m:0 12px 32px rgba(0,0,0,.45);
+  --schatten-gross:0 8px 20px rgba(0,0,0,.5), 0 28px 64px rgba(0,0,0,.55);
 }
 
 @media (prefers-color-scheme: dark){
   :root:not([data-thema="hell"]){
-    --gruen:#5FAE8C;
-    --gruen-tief:#4A8C72;
-    --gruen-hell:#78C3A2;
+    --gruen:#57B389;
+    --gruen-tief:#3E8E68;
+    --gruen-hell:#74C7A1;
     --indigo:#8FB0DF;
-    --amber:#DBB979;
-    --rot:#DE7C6E;
+    --amber:#CFAE6E;
+    --rot:#DE8874;
+    --rot-weich:#2E1D19;
 
-    --bg:#0E1512;
-    --bg-2:#131B17;
-    --flaeche:#1A231E;
-    --flaeche-2:#212C26;
-    --linie:#2B372F;
-    --linie-stark:#3B4941;
-    --text:#E7EDE8;
-    --text-2:#B4C0B8;
-    --grau:#8B9A91;
+    --bg:#121513;
+    --bg-2:#1B201D;
+    --flaeche:#1D231F;
+    --flaeche-2:#262D28;
+    --linie:#2A322D;
+    --linie-stark:#3A443E;
+    --text:#E8EDE9;
+    --text-2:#B5BEB8;
+    --grau:#87938C;
 
     --akzent:var(--gruen);
-    --akzent-text:#0E1512;
-    --auf-gruen:#0E1512;
-    --info-bg:#2A2317;
-    --info-text:#E4CFA4;
-    --info-rand:#8A6F3C;
+    --akzent-text:#0C110E;
+    --auf-gruen:#0C110E;
+    --info-bg:#282316;
+    --info-text:#E0CFA6;
+    --info-rand:#83703F;
 
-    --kopf-bg:#141D18;
-    --kopf-text:#E7EDE8;
-    --kopf-schwach:rgba(231,237,232,.62);
+    --kopf-bg:var(--bg);
+    --kopf-text:var(--text);
+    --kopf-schwach:var(--grau);
 
-    --schatten-s:0 1px 2px rgba(0,0,0,.4);
-    --schatten-m:0 2px 6px rgba(0,0,0,.4), 0 10px 28px rgba(0,0,0,.34);
-    --schatten-gross:0 6px 14px rgba(0,0,0,.42), 0 22px 56px rgba(0,0,0,.46);
+    --schatten-s:none;
+    --schatten-m:0 12px 32px rgba(0,0,0,.45);
+    --schatten-gross:0 8px 20px rgba(0,0,0,.5), 0 28px 64px rgba(0,0,0,.55);
   }
 }
 
@@ -156,11 +161,6 @@ button{background:none;border:0;cursor:pointer;}
   background:var(--kopf-bg);
   color:var(--kopf-text);
   padding-top:var(--oben);
-  box-shadow:0 1px 0 rgba(0,0,0,.08);
-}
-:root[data-thema="dunkel"] .kopf{border-bottom:1px solid var(--linie);}
-@media (prefers-color-scheme: dark){
-  :root:not([data-thema="hell"]) .kopf{border-bottom:1px solid var(--linie);}
 }
 .kopf .inner{
   max-width:620px;margin:0 auto;padding:0 16px;
@@ -180,14 +180,10 @@ button{background:none;border:0;cursor:pointer;}
 .kopf .luecke{flex:1;}
 .kopf .zaehler{
   display:flex;align-items:center;gap:6px;
-  background:rgba(255,255,255,.15);
-  border-radius:999px;padding:4px 11px;
-  font-size:.8rem;font-weight:600;font-variant-numeric:tabular-nums;
+  background:var(--bg-2);color:var(--text-2);
+  border-radius:999px;padding:5px 12px;
+  font-size:.79rem;font-weight:600;font-variant-numeric:tabular-nums;
   white-space:nowrap;
-}
-:root[data-thema="dunkel"] .kopf .zaehler{background:rgba(255,255,255,.08);}
-@media (prefers-color-scheme: dark){
-  :root:not([data-thema="hell"]) .kopf .zaehler{background:rgba(255,255,255,.08);}
 }
 .kopf .zaehler .punkt{
   width:7px;height:7px;border-radius:50%;background:var(--amber);flex:none;
@@ -198,7 +194,7 @@ button{background:none;border:0;cursor:pointer;}
   display:grid;place-items:center;flex:none;
   color:var(--kopf-text);
 }
-.kopf .rund:active{background:rgba(255,255,255,.16);}
+.kopf .rund:active{background:var(--bg-2);}
 .kopf .rund svg{width:21px;height:21px;}
 
 main{
@@ -212,7 +208,6 @@ section[hidden]{display:none;}
   background:color-mix(in srgb, var(--flaeche) 88%, transparent);
   -webkit-backdrop-filter:saturate(180%) blur(18px);
   backdrop-filter:saturate(180%) blur(18px);
-  border-top:1px solid var(--linie);
   padding-bottom:var(--unten);
 }
 @supports not (backdrop-filter: blur(1px)){
@@ -276,9 +271,9 @@ h3:first-child{margin-top:2px;}
    19 Chips und fast fünf Bildschirmbreiten, das war nicht mehr zu überblicken. */
 .filterknopf{
   width:100%;display:flex;align-items:center;gap:10px;
-  background:var(--flaeche);border:1px solid var(--linie-stark);
-  border-radius:var(--r-m);padding:12px 14px;margin-bottom:12px;
-  box-shadow:var(--schatten-s);text-align:left;
+  background:var(--bg-2);
+  border-radius:var(--r-m);padding:14px 16px;margin-bottom:12px;
+  text-align:left;
   transition:background .15s;
 }
 .filterknopf:active{background:var(--flaeche-2);}
@@ -301,13 +296,13 @@ h3:first-child{margin-top:2px;}
 .fgruppe::after{content:"";flex:1;height:1px;background:var(--linie);}
 .fzeile{
   width:100%;display:flex;align-items:baseline;gap:10px;
-  background:var(--flaeche);border:1px solid var(--linie);
-  border-radius:var(--r-m);padding:12px 14px;margin-bottom:6px;text-align:left;
+  background:var(--flaeche);
+  border-radius:var(--r-m);padding:13px 15px;margin-bottom:6px;text-align:left;
 }
 .fzeile:active{background:var(--flaeche-2);}
 .fzeile[aria-current="true"]{
-  border-color:var(--akzent);
-  background:color-mix(in srgb, var(--akzent) 11%, var(--flaeche));
+  background:color-mix(in srgb, var(--akzent) 13%, var(--flaeche));
+  box-shadow:inset 0 0 0 1.5px var(--akzent);
 }
 @supports not (background: color-mix(in srgb, red 50%, blue)){
   .fzeile[aria-current="true"]{background:var(--flaeche-2);}
@@ -326,11 +321,10 @@ h3:first-child{margin-top:2px;}
 
 .segment{
   display:flex;background:var(--bg-2);
-  border:1px solid var(--linie);
-  border-radius:var(--r-s);padding:3px;gap:3px;margin-bottom:14px;
+  border-radius:var(--r-s);padding:4px;gap:4px;margin-bottom:14px;
 }
 .segment button{
-  flex:1;border-radius:7px;padding:8px 6px;
+  flex:1;border-radius:14px;padding:9px 6px;
   font-size:.83rem;font-weight:600;color:var(--text-2);
   transition:background .16s, color .16s, box-shadow .16s;
 }
@@ -339,9 +333,14 @@ h3:first-child{margin-top:2px;}
 }
 
 /* ---------- 7. Lernkarte ---------- */
+@keyframes karte-auf{
+  from{ opacity:0; transform:translateY(14px); }
+  to  { opacity:1; transform:none; }
+}
 .buehne{
   perspective:1400px;
   margin-bottom:14px;
+  animation:karte-auf .42s cubic-bezier(.22,.85,.3,1) both;
 }
 .flip{
   position:relative;
@@ -355,14 +354,7 @@ h3:first-child{margin-top:2px;}
 .seite{
   position:absolute;inset:0;
   -webkit-backface-visibility:hidden;backface-visibility:hidden;
-  /* Der Akzentstreifen liegt als Hintergrund auf der Karte, damit ihn
-     die runden Ecken sauber beschneiden. */
   background-color:var(--flaeche);
-  background-image:linear-gradient(90deg,var(--gruen),var(--gruen-hell));
-  background-size:100% 3px;
-  background-repeat:no-repeat;
-  background-position:top left;
-  border:1px solid var(--linie);
   border-radius:var(--r-l);
   box-shadow:var(--schatten-m);
   display:flex;flex-direction:column;
@@ -371,10 +363,7 @@ h3:first-child{margin-top:2px;}
   padding:46px 22px 40px;
   overflow:hidden;
 }
-.seite.rueck{
-  transform:rotateY(180deg);
-  background-image:linear-gradient(90deg,var(--indigo),var(--gruen-hell));
-}
+.seite.rueck{transform:rotateY(180deg);}
 
 .marke{
   position:absolute;top:14px;left:18px;
@@ -385,8 +374,8 @@ h3:first-child{margin-top:2px;}
   position:absolute;top:12px;right:16px;
   font-size:.64rem;font-weight:700;letter-spacing:.06em;
   color:var(--grau);
-  border:1px solid var(--linie-stark);border-radius:5px;
-  padding:1px 6px;
+  background:var(--bg-2);border-radius:8px;
+  padding:2px 8px;
 }
 .stufenpunkte{
   position:absolute;bottom:14px;left:0;right:0;
@@ -430,40 +419,34 @@ h3:first-child{margin-top:2px;}
   position:absolute;bottom:34px;right:16px;
   width:40px;height:40px;border-radius:50%;
   display:grid;place-items:center;
-  color:var(--grau);border:1px solid var(--linie);
-  background:var(--flaeche-2);
+  color:var(--grau);background:var(--flaeche-2);
 }
 .tonknopf svg{width:19px;height:19px;}
 .tonknopf:active{background:var(--linie);}
-.tonknopf.laeuft{color:var(--akzent);border-color:var(--akzent);}
+.tonknopf.laeuft{color:var(--akzent);background:var(--bg-2);}
 
 /* Bewertungsknöpfe */
 .knoepfe{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
 .tap{
   border-radius:var(--r-m);
-  padding:15px 6px 13px;
-  color:#fff;font-weight:700;
+  padding:16px 6px 14px;
+  font-weight:700;
   display:flex;flex-direction:column;align-items:center;gap:2px;
-  transition:transform .1s, filter .15s;
-  box-shadow:var(--schatten-s);
+  transition:transform .16s cubic-bezier(.22,.85,.3,1), filter .15s;
 }
 .tap .gross{font-size:.98rem;line-height:1.2;}
 .tap .klein{font-size:.66rem;font-weight:600;opacity:.82;font-variant-numeric:tabular-nums;}
-.tap:active{transform:scale(.97);filter:brightness(.92);}
-.tap.nochmal{background:var(--rot);}
-.tap.gut{background:var(--gruen);}
-.tap.leicht{background:var(--indigo);}
-:root[data-thema="dunkel"] .tap{color:#0E1512;}
-@media (prefers-color-scheme: dark){
-  :root:not([data-thema="hell"]) .tap{color:#0E1512;}
-}
+.tap:active{transform:scale(.96);filter:brightness(.96);}
+/* Neun von zehn Antworten sind "sitzt". Nur die traegt Farbe, damit der
+   Blick dorthin faellt und der Bildschirm ruhig bleibt. */
+.tap.nochmal{background:var(--rot-weich);color:var(--rot);}
+.tap.gut{background:var(--gruen);color:var(--auf-gruen);}
+.tap.leicht{background:var(--bg-2);color:var(--text-2);}
 
 .umdrehknopf{
   width:100%;border-radius:var(--r-m);
-  padding:16px;background:var(--flaeche);
-  border:1px solid var(--linie-stark);
+  padding:17px;background:var(--bg-2);
   color:var(--text);font-weight:700;font-size:.98rem;
-  box-shadow:var(--schatten-s);
 }
 .umdrehknopf:active{background:var(--flaeche-2);transform:scale(.99);}
 
@@ -486,12 +469,12 @@ h3:first-child{margin-top:2px;}
   display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-bottom:6px;
 }
 .kachel{
-  background:var(--flaeche);border:1px solid var(--linie);
-  border-radius:var(--r-m);padding:13px 10px;text-align:center;
-  box-shadow:var(--schatten-s);
+  background:var(--flaeche);
+  border-radius:var(--r-m);padding:17px 10px 14px;text-align:center;
 }
 .kachel b{
-  display:block;font-size:1.5rem;font-weight:700;line-height:1.15;
+  display:block;font-size:2.05rem;font-weight:700;line-height:1.05;
+  letter-spacing:-.025em;
   font-variant-numeric:tabular-nums;
 }
 .kachel span{
@@ -505,9 +488,8 @@ h3:first-child{margin-top:2px;}
 .kachel.n b{color:var(--text);}
 
 .reihe{
-  background:var(--flaeche);border:1px solid var(--linie);
-  border-radius:var(--r-m);padding:13px 15px;margin-bottom:8px;
-  box-shadow:var(--schatten-s);
+  background:var(--flaeche);
+  border-radius:var(--r-m);padding:15px 16px;margin-bottom:8px;
   width:100%;text-align:left;display:block;
 }
 .reihe .kopfzeile{
@@ -537,8 +519,8 @@ h3:first-child{margin-top:2px;}
 }
 .suche input{
   width:100%;background:var(--flaeche);
-  border:1px solid var(--linie-stark);border-radius:var(--r-s);
-  padding:11px 14px 11px 38px;font-size:.92rem;
+  border:0;border-radius:var(--r-s);
+  padding:13px 14px 13px 38px;font-size:.92rem;
   -webkit-appearance:none;appearance:none;
 }
 .suche input::placeholder{color:var(--grau);}
@@ -548,9 +530,8 @@ h3:first-child{margin-top:2px;}
 }
 
 .wortliste{
-  background:var(--flaeche);border:1px solid var(--linie);
+  background:var(--flaeche);
   border-radius:var(--r-m);overflow:hidden;margin-bottom:8px;
-  box-shadow:var(--schatten-s);
 }
 .wortzeile{
   display:flex;align-items:center;gap:12px;
@@ -614,8 +595,8 @@ h3:first-child{margin-top:2px;}
 
 .opt{
   display:flex;align-items:center;justify-content:space-between;gap:14px;
-  background:var(--flaeche);border:1px solid var(--linie);
-  border-radius:var(--r-m);padding:12px 14px;margin-bottom:8px;
+  background:var(--flaeche);
+  border-radius:var(--r-m);padding:14px 15px;margin-bottom:8px;
 }
 .opt .beschriftung{min-width:0;}
 .opt .beschriftung b{display:block;font-size:.92rem;font-weight:600;}
@@ -637,18 +618,18 @@ h3:first-child{margin-top:2px;}
 .knopf{
   width:100%;border-radius:var(--r-m);padding:13px;
   font-size:.92rem;font-weight:700;
-  background:var(--flaeche);border:1px solid var(--linie-stark);color:var(--text);
+  background:var(--bg-2);color:var(--text);
   margin-bottom:8px;
 }
 .knopf:active{background:var(--flaeche-2);}
-.knopf.warn{color:var(--rot);border-color:color-mix(in srgb, var(--rot) 40%, var(--linie));}
-.knopf.voll{background:var(--gruen);border-color:var(--gruen);color:var(--auf-gruen);}
+.knopf.warn{color:var(--rot);background:var(--rot-weich);}
+.knopf.voll{background:var(--gruen);color:var(--auf-gruen);}
 
 textarea{
   width:100%;min-height:96px;
   font-family:var(--mono);font-size:.7rem;line-height:1.5;
   background:var(--flaeche);color:var(--text-2);
-  border:1px solid var(--linie);border-radius:var(--r-s);
+  border:0;border-radius:var(--r-s);
   padding:11px;resize:vertical;margin-bottom:8px;
   -webkit-appearance:none;appearance:none;
 }

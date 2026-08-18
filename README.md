@@ -102,7 +102,7 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | Datei | Inhalt |
 |---|---|
 | `index.html` | Aufbau der Seite |
-| `app.css` | Gestaltung, hell und dunkel |
+| `app.css` | Gestaltung „Papier", hell und dunkel |
 | `app.js` | Karteikarten, Wiederholungsplan, Speicherung |
 | `vokabeln.js` | die Wörter und die Abschnitte |
 | `sw.js` | Offlinebetrieb |
