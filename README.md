@@ -91,6 +91,12 @@ App liest die vorhandenen Topics aus den Daten, nichts ist fest verdrahtet.
 Nach jeder Änderung in `sw.js` die `VERSION` hochzählen, damit die installierte
 App die neue Fassung lädt.
 
+Ändern sich `index.html` und `app.js` gemeinsam so, dass sie nur noch als Paar
+funktionieren, kann eine Fassung aus dem Cache auf die andere aus dem Netz
+treffen. Die App merkt das: Bricht der Start ab oder übernimmt mitten im
+Betrieb ein neuer Service Worker, lädt sie sich genau einmal neu. Scheitert
+es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
+
 ## Dateien
 
 | Datei | Inhalt |

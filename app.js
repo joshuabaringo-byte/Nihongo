@@ -778,6 +778,31 @@ function verdrahten(){
   });
 }
 
+/* ---------- Selbstheilung bei gemischten Fassungen ----------
+   Der Service Worker holt jede Datei einzeln. Uebernimmt eine neue Fassung
+   mitten in einer geladenen Seite, koennen index.html und app.js aus
+   verschiedenen Staenden stammen; dann fehlen Elemente und der Start bricht
+   ab. Einmal neu laden bringt beide wieder auf denselben Stand. Der Merker
+   in sessionStorage verhindert eine Schleife. */
+var MERKER = "kotoba-neu-geladen";
+
+function einmalNeuLaden(grund){
+  try{
+    if(sessionStorage.getItem(MERKER)) return false;
+    sessionStorage.setItem(MERKER, grund);
+  }catch(e){ return false; }
+  location.reload();
+  return true;
+}
+
+function zeigeStartfehler(){
+  var b = document.getElementById("kartenbereich");
+  if(!b) return;
+  b.innerHTML = '<div class="info">Die App konnte nicht starten. Schliess sie einmal ganz '
+    + "und oeffne sie neu. Hilft das nicht, tippe unter Einstellungen auf "
+    + "<b>Stand kopieren</b> und sichere ihn, bevor du weitermachst.</div>";
+}
+
 /* ---------- Start ---------- */
 function start(){
   document.documentElement.setAttribute("data-thema", einst.thema);
@@ -811,11 +836,27 @@ function start(){
   }
 
   if("serviceWorker" in navigator){
+    // Uebernimmt ein neuer Service Worker, passt das geladene Skript
+    // moeglicherweise nicht mehr zum geladenen HTML - also neu laden. Beim
+    // allerersten Besuch gab es noch keinen Vorgaenger; diese Uebernahme ist
+    // erwartbar und darf kein Neuladen ausloesen.
+    var hatteVorgaenger = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener("controllerchange", function(){
+      if(hatteVorgaenger) einmalNeuLaden("fassungswechsel");
+    });
     window.addEventListener("load", function(){
       navigator.serviceWorker.register("sw.js").catch(function(){ /* offline nicht verfügbar */ });
     });
   }
+
+  try{ sessionStorage.removeItem(MERKER); }catch(e){ /* egal */ }
 }
 
-start();
+try{
+  start();
+}catch(e){
+  // Ein Neustart repariert eine gemischte Fassung. Scheitert es danach
+  // wieder, bleibt es beim Hinweis statt bei einem leeren Bildschirm.
+  if(!einmalNeuLaden("startfehler")) zeigeStartfehler();
+}
 })();
