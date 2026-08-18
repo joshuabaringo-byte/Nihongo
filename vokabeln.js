@@ -1,5 +1,5 @@
 /* ------------------------------------------------------------------
-   Vokabeldaten - ARC Kyoto, Topic 1 bis 3
+   Vokabeldaten, nach Topic und Abschnitt
    Aufbau je Zeile: [Abschnitt, Kana, Romaji, Bedeutung, Wortart]
    Wortart: N = Nomen, V = Verb, A = Adjektiv, leer = sonstiges
    ------------------------------------------------------------------ */

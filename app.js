@@ -1,5 +1,5 @@
 /* ==================================================================
-   ことば - Vokabeltrainer ARC Kyoto
+   ことば - Vokabeltrainer
    Nutzt V und ABSCHNITTE aus vokabeln.js
    ================================================================== */
 (function () {
@@ -10,9 +10,12 @@ var TAG      = 86400000;
 var STUFEN   = [0, 1, 2, 4, 8, 17, 35];   // Tage bis zur nächsten Abfrage
 var MAXSTUFE = STUFEN.length - 1;         // 6
 var FEST     = 5;                         // ab dieser Stufe gilt ein Wort als gefestigt
-var K_STAND  = "arc-kotoba-v2";
-var K_ALT    = "arc-kotoba-v1";
-var K_EINST  = "arc-kotoba-einst";
+var K_STAND  = "kotoba-v2";
+var K_EINST  = "kotoba-einst";
+/* Frueher benutzte Namen, neueste zuerst. Sie werden einmalig uebernommen,
+   damit ein bestehender Lernstand beim Umbenennen nicht verloren geht. */
+var K_FRUEHER       = ["arc-kotoba-v2", "arc-kotoba-v1"];
+var K_EINST_FRUEHER = ["arc-kotoba-einst"];
 var NACHRUECK = 4;                        // nach wie vielen Karten ein "nochmal" wiederkommt
 
 /* ---------- Kleine Helfer ---------- */
@@ -40,16 +43,29 @@ function lege(schluessel, wert){
   try{ localStorage.setItem(schluessel, JSON.stringify(wert)); }
   catch(e){ speicherOk = false; }
 }
-
-var stand = hole(K_STAND, null);
-if(!stand){                                  // einmalige Übernahme aus der alten Fassung
-  stand = hole(K_ALT, {});
-  if(Object.keys(stand).length) lege(K_STAND, stand);
-  else stand = {};
+function entferne(schluessel){
+  try{ localStorage.removeItem(schluessel); }catch(e){ /* egal */ }
 }
+
+/* Liest den aktuellen Schluessel; ist er leer, wird der erste gefuellte
+   frueher benutzte Schluessel uebernommen und danach aufgeraeumt. */
+function holeMitUebernahme(schluessel, frueher){
+  var d = hole(schluessel, null);
+  if(d) return d;
+  for(var i = 0; i < frueher.length; i++){
+    var altD = hole(frueher[i], null);
+    if(!altD || !Object.keys(altD).length) continue;
+    lege(schluessel, altD);
+    if(hole(schluessel, null)) entferne(frueher[i]);   // erst raeumen, wenn es sicher liegt
+    return altD;
+  }
+  return {};
+}
+
+var stand = holeMitUebernahme(K_STAND, K_FRUEHER);
 normalisiere(stand);
 
-var einst = hole(K_EINST, {});
+var einst = holeMitUebernahme(K_EINST, K_EINST_FRUEHER);
 if(einst.thema    === undefined) einst.thema    = "auto";
 if(einst.romaji   === undefined) einst.romaji   = true;
 if(einst.ton      === undefined) einst.ton      = false;

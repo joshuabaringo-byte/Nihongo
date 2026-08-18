@@ -1,4 +1,4 @@
-# ことば · Vokabeltrainer ARC Kyoto
+# ことば · Vokabeltrainer
 
 Privater Vokabeltrainer für Japanisch, gebaut für das iPhone.
 457 Wörter aus Topic 1 bis 5, Karteikarten mit Wiederholung nach Plan,
