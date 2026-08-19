@@ -30,7 +30,8 @@ const ABSCHNITTE = {
   "5-3": { t: 5, nr: "§3", titel: "て-Form und höfliche Bitten" },
   "5-4": { t: 5, nr: "§4", titel: "Telefonieren und Verabreden" },
   "6-1": { t: 6, nr: "§1", titel: "Personen beschreiben, Restaurant" },
-  "6-2": { t: 6, nr: "§2", titel: "Beruf, Musik, Idols" }
+  "6-2": { t: 6, nr: "§2", titel: "Beruf, Musik, Idols" },
+  "6-3": { t: 6, nr: "§3", titel: "Ausflüge, Wetter und Vergleiche" }
 };
 
 const ROH = [
@@ -315,6 +316,30 @@ const ROH = [
 ["6-2","どくしん","dokushin","ledig, unverheiratet",""],
 ["6-2","にんきがあります","ninki ga arimasu","beliebt sein","V"],
 ["6-2","ライブ","raibu","Livekonzert","N"],
+
+/* ===== Topic 6 §3 ===== */
+
+["6-3","スカイツリー","Sukai-Tsurii","Tokyo Skytree","N"],
+["6-3","しゅうまつ","shuumatsu","Wochenende","N"],
+["6-3","メロン","meron","Melone","N"],
+["6-3","にっこう","Nikkoo","Nikkō (Ort)","N"],
+["6-3","こうよう","kooyoo","Herbstlaub","N"],
+["6-3","とっとり","Tottori","Tottori (Ort)","N"],
+["6-3","かぜ","kaze","Wind","N"],
+["6-3","けしき","keshiki","Landschaft, Aussicht","N"],
+["6-3","あさくさ","Asakusa","Asakusa (Ort)","N"],
+["6-3","やきそば","yakisoba","Yakisoba (gebratene Nudeln)","N"],
+["6-3","しゅくだい","shukudai","Hausaufgabe","N"],
+["6-3","しけん","shiken","Prüfung, Examen","N"],
+["6-3","せんそうじ","Sensooji","Sensōji-Tempel","N"],
+["6-3","おみせ","omise","Laden, Geschäft","N"],
+["6-3","あめ","ame","Regen","N"],
+["6-3","とうきょう","Tookyoo","Tokyo","N"],
+["6-3","つよい","tsuyoi","stark","Aい"],
+["6-3","のぼります","noborimasu","hinaufsteigen, hinaufklettern","V"],
+["6-3","いちばん","ichiban","am meisten, Nummer eins",""],
+["6-3","あまり～ない","amari...nai","nicht sehr / nicht besonders",""],
+["6-3","どうでしたか","doo deshita ka","Wie war es?",""],
 
 /* ===== Topic 1 ===== */
 ["1-1","みなさん","minasan","alle zusammen, meine Damen und Herren","N"],
