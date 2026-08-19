@@ -1,7 +1,7 @@
 # ことば · Vokabeltrainer
 
 Privater Vokabeltrainer für Japanisch, gebaut für das iPhone.
-457 Wörter aus Topic 1 bis 5, Karteikarten mit Wiederholung nach Plan,
+492 Wörter aus den Grundlagen und Topic 1 bis 5, Karteikarten mit Wiederholung nach Plan,
 Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
 
 Läuft ohne Server, ohne Konto und ohne Netz. Alles bleibt auf dem Gerät.
@@ -87,6 +87,10 @@ Ein **neues Topic** braucht nur zwei Handgriffe in derselben Datei:
 
 Filterleiste, Fortschritt, Wortliste und Fußzeile ziehen von allein nach — die
 App liest die vorhandenen Topics aus den Daten, nichts ist fest verdrahtet.
+
+Eine Gruppe, die kein Topic des Buchs ist, bekommt in `TOPICNAMEN` einen eigenen
+Namen; ohne Eintrag heißt sie schlicht „Topic n". So liegen die Zählwörter und
+Preise von Buchseite 8 bis 9 unter **Grundlagen** vor Topic 1.
 
 Nach jeder Änderung in `sw.js` die `VERSION` hochzählen, damit die installierte
 App die neue Fassung lädt.

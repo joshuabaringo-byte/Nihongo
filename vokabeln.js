@@ -5,6 +5,10 @@
    ------------------------------------------------------------------ */
 
 const ABSCHNITTE = {
+  "0-1": { t: 0, nr: "§1", titel: "Zählen von eins bis zehn" },
+  "0-2": { t: 0, nr: "§2", titel: "Preise: Hunderter und Tausender" },
+  "0-3": { t: 0, nr: "§3", titel: "Im Laden" },
+
   "1-1": { t: 1, nr: "§1", titel: "Vorstellung und Herkunft" },
   "1-2": { t: 1, nr: "§2", titel: "Räume und Orte" },
   "1-3": { t: 1, nr: "§3", titel: "これ・それ・あれ" },
@@ -21,6 +25,46 @@ const ABSCHNITTE = {
 };
 
 const ROH = [
+/* ===== Zahlen und Preise, Buchseiten 8 bis 9 ===== */
+
+["0-1","ひとつ","hitotsu","eins (Stück)","Zahl"],
+["0-1","ふたつ","futatsu","zwei (Stück)","Zahl"],
+["0-1","みっつ","mittsu","drei (Stück)","Zahl"],
+["0-1","よっつ","yottsu","vier (Stück)","Zahl"],
+["0-1","いつつ","itsutsu","fünf (Stück)","Zahl"],
+["0-1","むっつ","muttsu","sechs (Stück)","Zahl"],
+["0-1","ななつ","nanatsu","sieben (Stück)","Zahl"],
+["0-1","やっつ","yattsu","acht (Stück)","Zahl"],
+["0-1","ここのつ","kokonotsu","neun (Stück)","Zahl"],
+["0-1","とお","too","zehn (Stück)","Zahl"],
+
+["0-2","ひゃく","hyaku","100","Zahl"],
+["0-2","にひゃく","nihyaku","200","Zahl"],
+["0-2","さんびゃく","sanbyaku","300 (hyaku wird byaku)","Zahl"],
+["0-2","よんひゃく","yonhyaku","400","Zahl"],
+["0-2","ごひゃく","gohyaku","500","Zahl"],
+["0-2","ろっぴゃく","roppyaku","600 (roku wird rop)","Zahl"],
+["0-2","ななひゃく","nanahyaku","700","Zahl"],
+["0-2","はっぴゃく","happyaku","800 (hachi wird hap)","Zahl"],
+["0-2","きゅうひゃく","kyuuhyaku","900","Zahl"],
+["0-2","せん","sen","1000","Zahl"],
+["0-2","にせん","nisen","2000","Zahl"],
+["0-2","さんぜん","sanzen","3000 (sen wird zen)","Zahl"],
+["0-2","よんせん","yonsen","4000","Zahl"],
+["0-2","ごせん","gosen","5000","Zahl"],
+["0-2","ろくせん","rokusen","6000","Zahl"],
+["0-2","ななせん","nanasen","7000","Zahl"],
+["0-2","はっせん","hassen","8000 (hachi wird has)","Zahl"],
+["0-2","きゅうせん","kyuusen","9000","Zahl"],
+["0-2","いちまん","ichiman","10000 (neue Einheit man)","Zahl"],
+["0-2","えん","en","Yen","N"],
+
+["0-3","りんご","ringo","Apfel","N"],
+["0-3","いくら","ikura","wie viel","N"],
+["0-3","ください","kudasai","bitte (geben Sie mir)",""],
+["0-3","いらっしゃいませ","irasshaimase","Willkommen (Begrüßung im Laden)",""],
+["0-3","～ですね","~desu ne","…, richtig? (Rückfrage)",""],
+
 /* ===== Topic 1 ===== */
 ["1-1","みなさん","minasan","alle zusammen, meine Damen und Herren","N"],
 ["1-1","～さん","~san","Höflichkeitsanhang für Namen",""],
@@ -513,6 +557,15 @@ const V = ROH.map(r => ({
 /* Vorhandene Topics, aus ABSCHNITTE abgeleitet. Für ein neues Topic genügen
    deshalb ein Eintrag oben in ABSCHNITTE und die Wörter in ROH - die App
    zieht Filter, Fortschritt und Listen von allein nach. */
+/* Nicht jede Gruppe ist ein Topic des Buchs. Wer hier keinen Eintrag hat,
+   heisst schlicht "Topic n". */
+const TOPICNAMEN = {
+  0: { lang: "Grundlagen", kurz: "G" }
+};
+function topicName(t){
+  return TOPICNAMEN[t] || { lang: "Topic " + t, kurz: "T" + t };
+}
+
 const TOPICS = Object.keys(ABSCHNITTE)
   .map(function(a){ return ABSCHNITTE[a].t; })
   .filter(function(t, i, alle){ return alle.indexOf(t) === i; })

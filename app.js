@@ -119,9 +119,9 @@ function auswahl(f){
 function faelligeAus(liste){ return liste.filter(istFaellig); }
 
 function filterName(f, lang){
-  if(f.art === "topic")   return "Ganzes Topic " + f.wert;
+  if(f.art === "topic")   return "Alles aus " + topicName(f.wert).lang;
   if(f.art === "ab"){
-    var a = ABSCHNITTE[f.wert], kurz = "T" + a.t + " " + a.nr;
+    var a = ABSCHNITTE[f.wert], kurz = topicName(a.t).kurz + " " + a.nr;
     return lang ? kurz + " · " + a.titel : kurz;
   }
   if(f.art === "problem") return "Problemwörter";
@@ -279,10 +279,10 @@ function zeichneFilter(){
     if(f.art === "problem") h += zeile(i, "", "", "Problemwörter");
   });
   TOPICS.forEach(function(t){
-    h += '<div class="fgruppe">Topic ' + t + "</div>";
+    h += '<div class="fgruppe">' + esc(topicName(t).lang) + "</div>";
     liste.forEach(function(f, i){
       if(f.art === "topic" && f.wert === t)
-        h += zeile(i, "", "", "Ganzes Topic " + t);
+        h += zeile(i, "", "", "Alles aus " + topicName(t).lang);
       if(f.art === "ab" && ABSCHNITTE[f.wert].t === t)
         h += zeile(i, "unter", ABSCHNITTE[f.wert].nr, ABSCHNITTE[f.wert].titel);
     });
@@ -324,7 +324,7 @@ function zeichneLernen(){
   $("#sitzungRest").textContent  = schlange.length;
   $("#sitzungBalken").style.width = (gesamt ? Math.round(getan / gesamt * 100) : 0) + "%";
 
-  var marke   = "T" + v.t + " " + ABSCHNITTE[v.ab].nr + (k.stufe === 0 ? " · neu" : "");
+  var marke   = topicName(v.t).kurz + " " + ABSCHNITTE[v.ab].nr + (k.stufe === 0 ? " · neu" : "");
   var wortart = v.wa ? '<span class="wortart">' + esc(v.wa) + "</span>" : "";
   var punkte  = stufenPunkte(k.stufe, "stufenpunkte");
 
@@ -480,7 +480,7 @@ function zeichneStand(){
 
   var html = "";
   TOPICS.forEach(function(t){
-    html += "<h3>Topic " + t + "</h3>";
+    html += "<h3>" + esc(topicName(t).lang) + "</h3>";
     Object.keys(ABSCHNITTE).filter(function(a){ return ABSCHNITTE[a].t === t; }).forEach(function(a){
       var w = V.filter(function(v){ return v.ab === a; });
       var fest = 0, lernt = 0;
@@ -556,7 +556,7 @@ function zeichneListe(){
   }
   var html = "";
   TOPICS.forEach(function(t){
-    html += "<h3>Topic " + t + "</h3>";
+    html += "<h3>" + esc(topicName(t).lang) + "</h3>";
     Object.keys(ABSCHNITTE).filter(function(a){ return ABSCHNITTE[a].t === t; }).forEach(function(a){
       html += "<h2>" + ABSCHNITTE[a].nr + " " + esc(ABSCHNITTE[a].titel) + "</h2>"
         + wortListe(V.filter(function(v){ return v.ab === a; }), false);
@@ -783,9 +783,14 @@ function zeigeStartfehler(){
 /* ---------- Start ---------- */
 function start(){
   document.documentElement.setAttribute("data-thema", einst.thema);
-  var spanne = TOPICS.length > 1
-    ? "Topic " + TOPICS[0] + " bis " + TOPICS[TOPICS.length - 1]
-    : "Topic " + TOPICS[0];
+  // Nummerierte Topics als Spanne, benannte Gruppen davor beim Namen nennen.
+  var benannt = TOPICS.filter(function(t){ return TOPICNAMEN[t]; })
+                      .map(function(t){ return topicName(t).lang; });
+  var zahlen  = TOPICS.filter(function(t){ return !TOPICNAMEN[t]; });
+  var teile   = benannt.slice();
+  if(zahlen.length > 1) teile.push("Topic " + zahlen[0] + " bis " + zahlen[zahlen.length - 1]);
+  else if(zahlen.length) teile.push("Topic " + zahlen[0]);
+  var spanne = teile.join(" · ");
   $("#anzahlGesamt").textContent = V.length;
   $("#ueberZahl").textContent    = V.length;
   $("#topicSpanne").textContent  = spanne;
