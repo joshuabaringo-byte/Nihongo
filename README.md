@@ -1,7 +1,7 @@
 # ことば · Vokabeltrainer
 
 Privater Vokabeltrainer für Japanisch, gebaut für das iPhone.
-765 Wörter aus den Grundlagen und Topic 1 bis 6, Karteikarten mit Wiederholung nach Plan,
+854 Wörter aus den Grundlagen und Topic 1 bis 7, Karteikarten mit Wiederholung nach Plan,
 Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
 
 Läuft ohne Server, ohne Konto und ohne Netz. Alles bleibt auf dem Gerät.

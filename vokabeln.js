@@ -34,7 +34,11 @@ const ABSCHNITTE = {
   "6-1": { t: 6, nr: "§1", titel: "Personen beschreiben, Restaurant" },
   "6-2": { t: 6, nr: "§2", titel: "Beruf, Musik, Idols" },
   "6-3": { t: 6, nr: "§3", titel: "Ausflüge, Wetter und Vergleiche" },
-  "6-4": { t: 6, nr: "§4", titel: "Vorgehen, Können und Lernen" }
+  "6-4": { t: 6, nr: "§4", titel: "Vorgehen, Können und Lernen" },
+  "7-1": { t: 7, nr: "§1", titel: "Reisen und Aktivitäten" },
+  "7-2": { t: 7, nr: "§2", titel: "Bahn und Stadt" },
+  "7-3": { t: 7, nr: "§3", titel: "Natur und Okinawa" },
+  "7-4": { t: 7, nr: "§4", titel: "Essen und Paris" }
 };
 
 const ROH = [
@@ -851,7 +855,108 @@ const ROH = [
 ["5-3","ちょっと","chotto","ein wenig, kurz",""],
 ["5-3","あつい","atsui","heiß, warm","Aい"],
 ["5-3","さむい","samui","kalt","Aい"],
-["5-3","あかい","akai","rot","Aい"]
+["5-3","あかい","akai","rot","Aい"],
+
+/* ===== Topic 7 §1 - Reisen und Aktivitäten ===== */
+
+["7-1","ふじさん","Fujisan","Berg Fuji","N"],
+["7-1","やま","yama","Berg","N"],
+["7-1","いちど","ichido","einmal","N"],
+["7-1","いちども","ichido mo","kein einziges Mal (mit Verneinung)",""],
+["7-1","のります","norimasu","einsteigen, fahren (mit)","V"],
+["7-1","かぶき","kabuki","Kabuki (Theater)","N"],
+["7-1","ダイビング","daibingu","Tauchen (Scuba Diving)","N"],
+["7-1","きもの","kimono","Kimono","N"],
+["7-1","とうきょうタワー","Tookyoo-Tawaa","Tokyo Tower","N"],
+["7-1","キャンプ","kyanpu","Camping","N"],
+["7-1","うえのこうえん","Ueno-Kooen","Ueno-Park","N"],
+["7-1","ハイキング","haikingu","Wandern","N"],
+["7-1","たかおさん","Takaosan","Berg Takao","N"],
+["7-1","かきごおり","kakigoori","Raspeleis (Shaved Ice)","N"],
+["7-1","バンジージャンプ","banjii-janpu","Bungee-Jumping","N"],
+
+/* ===== Topic 7 §2 - Bahn und Stadt ===== */
+
+["7-2","かんこうあんないじょ","kankoo-annaijo","Touristeninformation","N"],
+["7-2","かれ","kare","Freund, fester Freund","N"],
+["7-2","かのじょ","kanojo","Freundin, feste Freundin","N"],
+["7-2","すいぞくかん","suizokukan","Aquarium","N"],
+["7-2","きんかくじ","Kinkaku-ji","Kinkaku-ji-Tempel (Goldener Pavillon)","N"],
+["7-2","おります","orimasu","aussteigen","V"],
+["7-2","のりかえます","norikaemasu","umsteigen","V"],
+["7-2","きゅうこう","kyuukoo","Schnellzug","N"],
+["7-2","ジェーアール","jeeaaru","JR (Japan Railways)","N"],
+["7-2","かくえきていしゃ","kakuekiteesha","Nahverkehrszug (hält überall)","N"],
+["7-2","おてあらい","otearai","Toilette","N"],
+["7-2","そろそろ","sorosoro","allmählich, es wird Zeit",""],
+["7-2","みち","michi","Straße, Weg","N"],
+["7-2","にもつ","nimotsu","Gepäck","N"],
+["7-2","のどがかわきます","nodo ga kawakimasu","durstig sein","V"],
+["7-2","エーティーエム","eetiiemu","Geldautomat","N"],
+["7-2","（おかねを）おろします","(okane o) orosimasu","(Geld) abheben (höflich)","V"],
+["7-2","くろ","kuro","Schwarz","N"],
+["7-2","しろ","shiro","Weiß","N"],
+["7-2","あか","aka","Rot","N"],
+["7-2","ございます","gozaimasu","haben (höflicher Ausdruck)","V"],
+["7-2","せんざい","senzai","Waschmittel","N"],
+["7-2","サンドイッチ","sandoicchi","Sandwich","N"],
+["7-2","たまねぎ","tamanegi","Zwiebel","N"],
+["7-2","コーラ","koora","Cola","N"],
+["7-2","ポップコーン","poppukoon","Popcorn","N"],
+["7-2","バスツアー","basutsuaa","Bustour","N"],
+["7-2","さんかします","sanka shimasu","teilnehmen","V"],
+["7-2","もどります","modorimasu","zurückkehren","V"],
+["7-2","たき","taki","Wasserfall","N"],
+["7-2","かんらんしゃ","kanransha","Riesenrad","N"],
+["7-2","こうじょう","koojoo","Fabrik","N"],
+["7-2","けんがくします","kengaku shimasu","besichtigen","V"],
+["7-2","いちごがり","ichigo-gari","Erdbeerpflücken","N"],
+["7-2","きよみずでら","Kiyomizu-dera","Kiyomizu-Tempel","N"],
+["7-2","かんこうち","kankoochi","Touristenattraktion","N"],
+["7-2","おきゃくさん","okyakusan","Kunde, Gast","N"],
+["7-2","しらべます","shirabemasu","nachschlagen, recherchieren","V"],
+["7-2","あんないします","annai shimasu","führen (als Guide)","V"],
+
+/* ===== Topic 7 §3 - Natur und Okinawa ===== */
+
+["7-3","しぜん","shizen","Natur","N"],
+["7-3","エベレスト","Eberesuto","Mount Everest","N"],
+["7-3","わかい","wakai","jung","Aい"],
+["7-3","ぶっか","bukka","Preise, Lebenshaltungskosten","N"],
+["7-3","どちら","dochira","welche(r/s) (von zweien)",""],
+["7-3","よてい","yotee","Plan, Termin","N"],
+["7-3","けごんのたき","Kegon no taki","Kegon-Wasserfall","N"],
+["7-3","クラス","kurasu","Klasse, Kurs","N"],
+["7-3","バレーボール","baree booru","Volleyball","N"],
+["7-3","きせつ","kisetsu","Jahreszeit","N"],
+["7-3","かんがえます","kangaemasu","nachdenken","V"],
+["7-3","すいています","suiteimasu","nicht überfüllt sein","V"],
+["7-3","プラン","puran","Plan","N"],
+["7-3","レンタカー","rentakaa","Mietwagen","N"],
+["7-3","ちゅらうみすいぞくかん","Churaumi-suizokukan","Okinawa Churaumi-Aquarium","N"],
+["7-3","しゅりじょう","Shurijoo","Shuri-Burg","N"],
+["7-3","ぎょくせんどう","Gyokusendoo","Gyokusendo-Höhle","N"],
+["7-3","ソーキそば","Sooki-soba","Sooki-Soba (Nudelsuppe mit Rippchen)","N"],
+["7-3","ゴーヤチャンプル","Gooya-chanpuru","Goya Champuru (Bittermelonen-Pfanne)","N"],
+["7-3","くうこう","kuukoo","Flughafen","N"],
+
+/* ===== Topic 7 §4 - Essen und Paris ===== */
+
+["7-4","もちろん","mochiron","natürlich",""],
+["7-4","サーフィン","saafin","Surfen","N"],
+["7-4","（お）せんべい","(o)senbee","Reiscracker","N"],
+["7-4","パスポート","pasupooto","Reisepass","N"],
+["7-4","タワー","tawaa","Turm","N"],
+["7-4","クッキー","kukkii","Keks","N"],
+["7-4","はくぶつかん","hakubutsukan","Museum","N"],
+["7-4","やけい","yakee","Nachtaussicht","N"],
+["7-4","カステラ","kasutera","Castella (Biskuitkuchen)","N"],
+["7-4","まず","mazu","zuerst",""],
+["7-4","つぎに","tsugi ni","als Nächstes",""],
+["7-4","ルーブルびじゅつかん","Ruuburu bijutsukan","Louvre-Museum","N"],
+["7-4","エッフェルとう","Efferu too","Eiffelturm","N"],
+["7-4","クロワッサン","kurowassan","Croissant","N"],
+["7-4","カフェオレ","kafeore","Café au Lait","N"]
 ];
 
 const V = ROH.map(r => ({
