@@ -1,7 +1,7 @@
 # ことば · Vokabeltrainer
 
 Privater Vokabeltrainer für Japanisch, gebaut für das iPhone.
-736 Wörter aus den Grundlagen und Topic 1 bis 6, Karteikarten mit Wiederholung nach Plan,
+765 Wörter aus den Grundlagen und Topic 1 bis 6, Karteikarten mit Wiederholung nach Plan,
 Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
 
 Läuft ohne Server, ohne Konto und ohne Netz. Alles bleibt auf dem Gerät.
@@ -64,12 +64,22 @@ Alle Wörter stehen in `vokabeln.js`. Eine Zeile hat die Form
 ```js
 ["3-2","いずみ","izumi","Quelle","N"],
 ["5-3","かします","kashimasu","verleihen","V",1],
+["6-4","ほうほう","hoohoo","Methode","N",0,"method","方法"],
 ```
 
 also Abschnitt, Kana, Rōmaji, Bedeutung und Wortart. Die Wortart ist `N`, `V`,
-`Aい`, `Aな` oder leer. Bei Verben darf ein sechstes Feld die Verbgruppe (1, 2
-oder 3) tragen; sie wird für て-Form-Übungen gebraucht und lässt sich nicht aus
-dem Kana ableiten.
+`Aい`, `Aな` oder leer. Die drei Felder danach sind alle freiwillig und dürfen
+fehlen, solange kein späteres folgt:
+
+| Stelle | Feld | wofür |
+| --- | --- | --- |
+| 6 | Verbgruppe | `1`, `2` oder `3`; `0` heißt „noch nicht bekannt". Wird für て-Form-Übungen gebraucht und lässt sich nicht aus dem Kana ableiten. |
+| 7 | Englisch | die englische Bedeutung, wo die Quelle sie mitliefert |
+| 8 | Kanji | die Schreibung in Kanji, wo es eine gibt |
+
+Englisch und Kanji werden bisher nur gespeichert, nicht angezeigt. Wer eine
+spätere Stelle füllen will, ohne eine frühere zu kennen, schreibt dort `0`
+beziehungsweise `""`.
 
 Rōmaji werden mit verdoppelten langen Vokalen geschrieben (`sensee`, `tanjoobi`),
 nicht mit Makron. Kommt ein Wort in mehreren Abschnitten vor, bleibt es dort,

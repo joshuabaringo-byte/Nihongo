@@ -1,7 +1,9 @@
 /* ------------------------------------------------------------------
    Vokabeldaten, nach Topic und Abschnitt
-   Aufbau je Zeile: [Abschnitt, Kana, Romaji, Bedeutung, Wortart]
+   Aufbau je Zeile: [Abschnitt, Kana, Romaji, Bedeutung, Wortart,
+                     Verbgruppe, Englisch, Kanji]
    Wortart: N = Nomen, V = Verb, A = Adjektiv, leer = sonstiges
+   Die letzten drei Felder sind freiwillig und duerfen fehlen.
    ------------------------------------------------------------------ */
 
 const ABSCHNITTE = {
@@ -31,7 +33,8 @@ const ABSCHNITTE = {
   "5-4": { t: 5, nr: "§4", titel: "Telefonieren und Verabreden" },
   "6-1": { t: 6, nr: "§1", titel: "Personen beschreiben, Restaurant" },
   "6-2": { t: 6, nr: "§2", titel: "Beruf, Musik, Idols" },
-  "6-3": { t: 6, nr: "§3", titel: "Ausflüge, Wetter und Vergleiche" }
+  "6-3": { t: 6, nr: "§3", titel: "Ausflüge, Wetter und Vergleiche" },
+  "6-4": { t: 6, nr: "§4", titel: "Vorgehen, Können und Lernen" }
 };
 
 const ROH = [
@@ -340,6 +343,38 @@ const ROH = [
 ["6-3","いちばん","ichiban","am meisten, Nummer eins",""],
 ["6-3","あまり～ない","amari...nai","nicht sehr / nicht besonders",""],
 ["6-3","どうでしたか","doo deshita ka","Wie war es?",""],
+
+/* ===== Topic 6 §4 - mit englischer Bedeutung und Kanji ===== */
+
+["6-4","どうやって","dooyatte","wie, auf welche Weise","",0,"how to",""],
+["6-4","ほうほう","hoohoo","Methode","N",0,"method","方法"],
+["6-4","しゅだん","shudan","Mittel, Wege","N",0,"means","手段"],
+["6-4","おぼえます","oboemasu","(sich) merken, lernen","V",0,"memorize","覚えます"],
+["6-4","インターネット","intaanetto","Internet","N",0,"internet",""],
+["6-4","よやくします","yoyakushimasu","buchen, reservieren","V",0,"book, make a reservation","予約します"],
+["6-4","オンラインレッスン","onrain-ressun","Online-Unterricht","N",0,"online lesson",""],
+["6-4","さがします","sagashimasu","suchen","V",0,"search","探します"],
+["6-4","よびます","yobimasu","rufen, anrufen","V",0,"call","呼びます"],
+["6-4","てつだいます","tetsudaimasu","helfen","V",0,"help","手伝います"],
+["6-4","うれしい","ureshii","froh, glücklich","Aい",0,"happy, glad","嬉しい"],
+["6-4","いみ","imi","Bedeutung","N",0,"meaning","意味"],
+["6-4","だいじょうぶ（な）","daijoobu na","in Ordnung, ok","Aな",0,"I'm okay. / I'm fine.","大丈夫（な）"],
+["6-4","メッセージ","messeeji","Nachricht","N",0,"message",""],
+["6-4","とくい（な）","tokui na","gut in etwas sein","Aな",0,"good at","得意（な）"],
+["6-4","にがて（な）","nigate na","nicht gut in etwas sein","Aな",0,"not good at","苦手（な）"],
+["6-4","もっと","motto","mehr","",0,"more",""],
+["6-4","さかな","sakana","Fisch","N",0,"fish","魚"],
+["6-4","ランチタイム","ranchitaimu","Mittagszeit, Mittagspause","N",0,"lunchtime, lunch break",""],
+["6-4","ゆうがた","yuugata","Spätnachmittag, Abend","N",0,"evening","夕方"],
+["6-4","とりにく","toriniku","Hähnchenfleisch","N",0,"chicken","鶏肉"],
+["6-4","ぶたにく","butaniku","Schweinefleisch","N",0,"pork","豚肉"],
+["6-4","ぎゅうにく","gyuuniku","Rindfleisch","N",0,"beef","牛肉"],
+["6-4","がいこくご","gaikokugo","Fremdsprache","N",0,"foreign language","外国語"],
+["6-4","やさしい（かんたん）","yasashii","einfach, leicht","Aい",0,"easy","易しい"],
+["6-4","たんごカード","tango-kaado","Vokabelkarten","N",0,"word cards","単語カード"],
+["6-4","ちょうかい","chookai","Hörverständnis","N",0,"listening","聴解"],
+["6-4","どっかい","dokkai","Leseverständnis","N",0,"reading","読解"],
+["6-4","はつおん","hatsuon","Aussprache","N",0,"pronunciation","発音"],
 
 /* ===== Topic 1 ===== */
 ["1-1","みなさん","minasan","alle zusammen, meine Damen und Herren","N"],
@@ -827,7 +862,9 @@ const V = ROH.map(r => ({
   romaji: r[2],
   de: r[3],
   wa: r[4],
-  gr: r[5] || 0     // Verbgruppe 1, 2 oder 3; 0 = noch nicht bekannt
+  gr: r[5] || 0,      // Verbgruppe 1, 2 oder 3; 0 = noch nicht bekannt
+  en: r[6] || "",     // englische Bedeutung, wo die Quelle sie mitliefert
+  kanji: r[7] || ""   // Schreibung in Kanji, wo es eine gibt
 }));
 
 /* Vorhandene Topics, aus ABSCHNITTE abgeleitet. Für ein neues Topic genügen

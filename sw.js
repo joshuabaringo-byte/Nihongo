@@ -1,6 +1,6 @@
 /* Service Worker: hält die App offline verfügbar.
    Bei jeder Änderung an den Dateien die VERSION erhöhen. */
-var VERSION = "kotoba-v14";
+var VERSION = "kotoba-v15";
 var DATEIEN = [
   "./",
   "./index.html",
