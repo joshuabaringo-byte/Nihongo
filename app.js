@@ -370,7 +370,7 @@ function zeichneSteuerung(){
   var sLeicht = Math.min(k.stufe + 2, MAXSTUFE);
   ziel.innerHTML =
       '<div class="knoepfe">'
-    + '<button class="tap nochmal" data-note="nochmal"><span class="gross">nochmal</span><span class="klein">' + tage(STUFEN[1]) + '</span></button>'
+    + '<button class="tap nochmal" data-note="nochmal"><span class="gross">nochmal</span><span class="klein">gleich</span></button>'
     + '<button class="tap gut" data-note="gut"><span class="gross">sitzt</span><span class="klein">' + tage(STUFEN[sGut]) + "</span></button>"
     + '<button class="tap leicht" data-note="leicht"><span class="gross">leicht</span><span class="klein">' + tage(STUFEN[sLeicht]) + "</span></button>"
     + "</div>";
@@ -394,19 +394,32 @@ function umdrehen(){
   if(einst.ton) sprich(schlange[0].kana, tk);
 }
 
+/* Ein Wort, das "nochmal" bekommt, wandert nicht ans Ende, sondern ein paar
+   Karten weiter nach hinten - weit genug, dass die Antwort nicht mehr vor
+   Augen steht, nah genug, um in derselben Runde wiederzukommen. Bleibt nur
+   noch dieses eine Wort in der Schlange, kommt es sofort wieder; etwas
+   anderes gibt es dann nicht zu zeigen. */
+var ABSTAND = 4;
+
+function nachruecken(v){
+  schlange.splice(Math.min(ABSTAND, schlange.length), 0, v);
+}
+
 function bewerte(note){
   if(!schlange.length || !umgedreht) return;
   var v = schlange[0], k = karteSchreiben(v.id);
 
+  schlange.shift();
   if(note === "nochmal"){
     k.fehler += 1;
     k.stufe   = 1;
+    k.faellig = 0;              // bleibt fällig, auch wenn die Runde vorher endet
+    nachruecken(v);             // und kommt in dieser Runde noch einmal dran
   }else{
     k.stufe   = Math.min(k.stufe + (note === "leicht" ? 2 : 1), MAXSTUFE);
+    k.faellig = Date.now() + STUFEN[k.stufe] * TAG;
+    getan += 1;
   }
-  k.faellig = Date.now() + STUFEN[k.stufe] * TAG;
-  schlange.shift();
-  getan += 1;
 
   standSichern();
   kopfAktualisieren();
