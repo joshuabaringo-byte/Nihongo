@@ -108,8 +108,8 @@
     <h3>Problemwörter</h3>
     <div class="info nichtdrucken">
       Wörter, die du mindestens zweimal auf <b>nochmal</b> gesetzt hast, sortiert nach Häufigkeit.
-      Zum Ausdrucken bei 7-Eleven über Teilen → Drucken; dann landet nur diese Liste auf dem Papier.
     </div>
+    <button class="knopf nichtdrucken" id="druckKnopf">Blatt zum Ausdrucken</button>
     <div id="problemListe"></div>
   </section>
 
@@ -154,6 +154,22 @@
     </button>
   </div>
   <div class="inhalt" id="filterliste"></div>
+</div>
+
+<!-- ===== Blatt zum Ausdrucken ===== -->
+<div class="blatt" id="druckblatt" role="dialog" aria-modal="true" aria-label="Blatt zum Ausdrucken">
+  <div class="griff"></div>
+  <div class="blattkopf">
+    <h2>Blatt zum Ausdrucken</h2>
+    <button class="schliessen" id="druckblattZu" aria-label="Schließen">
+      <svg viewBox="0 0 24 24"><use href="#i-zu"/></svg>
+    </button>
+  </div>
+  <div class="inhalt">
+    <div class="info" id="druckHinweis"></div>
+    <button class="knopf voll" id="druckTeilen" hidden>Blatt teilen</button>
+    <div id="druckSeiten"></div>
+  </div>
 </div>
 
 <!-- ===== Einstellungsblatt ===== -->

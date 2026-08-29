@@ -537,10 +537,15 @@ function wortListe(rows, mitFehler){
   return '<div class="wortliste">' + rows.map(function(v){ return wortZeile(v, mitFehler); }).join("") + "</div>";
 }
 
-function zeichneProblem(){
-  var p = V.filter(istProblem).sort(function(a, b){
+function problemWoerter(){
+  return V.filter(istProblem).sort(function(a, b){
     return karte(b.id).fehler - karte(a.id).fehler;
   });
+}
+
+function zeichneProblem(){
+  var p = problemWoerter();
+  $("#druckKnopf").hidden = !p.length;
   $("#problemListe").innerHTML = p.length
     ? wortListe(p, true)
     : '<div class="leer"><span class="zeichen jp">良</span>'
@@ -586,6 +591,129 @@ function themaSetzen(t){
   $$('.blatt [data-thema]').forEach(function(b){
     b.setAttribute("aria-pressed", b.dataset.thema === t ? "true" : "false");
   });
+}
+
+/* ---------- Problemwörter als Blatt ----------
+   Auf dem Home-Bildschirm läuft die App ohne Safari-Leiste; ein
+   "Teilen → Drucken" gibt es dort nicht. Also malt die App die Liste
+   selbst auf ein A4-Blatt. Das Bild lässt sich sichern oder weitergeben
+   und im Laden über die Netprint-App ausdrucken. */
+var A4_B = 1240, A4_H = 1754;        // A4 bei 150 dpi
+var RAND = 70, LUECKE = 50, KOPF = 150, ZEILE = 66;
+var SPALTE  = (A4_B - 2 * RAND - LUECKE) / 2;
+var PRO_SPALTE = Math.floor((A4_H - RAND - RAND - KOPF) / ZEILE);
+var PRO_SEITE  = PRO_SPALTE * 2;
+var C_JP   = '"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP",system-ui,sans-serif';
+var C_MONO = 'ui-monospace,SFMono-Regular,Menlo,monospace';
+var druckDateien = [];
+
+/* Größte Schrift, mit der der Text noch in die Spalte passt. */
+function passendeGroesse(x, text, breite, gross, klein){
+  for(var g = gross; g > klein; g--){
+    x.font = "600 " + g + "px " + C_JP;
+    if(x.measureText(text).width <= breite) return g;
+  }
+  return klein;
+}
+
+/* Notfalls kürzen - eine Bedeutung, die nicht passt, wird beschnitten,
+   statt in die Nachbarspalte zu laufen. */
+function kuerze(x, text, breite){
+  if(x.measureText(text).width <= breite) return text;
+  while(text.length > 1 && x.measureText(text + "…").width > breite) text = text.slice(0, -1);
+  return text + "…";
+}
+
+function malSeite(woerter, nr, gesamt){
+  var c = document.createElement("canvas");
+  c.width = A4_B; c.height = A4_H;
+  var x = c.getContext("2d");
+  x.fillStyle = "#fff"; x.fillRect(0, 0, A4_B, A4_H);
+
+  x.fillStyle = "#000";
+  x.font = "700 42px " + C_JP;
+  x.fillText("Problemwörter", RAND, RAND + 42);
+  x.fillStyle = "#555";
+  x.font = "24px " + C_JP;
+  x.fillText(new Date().toLocaleDateString("de-DE")
+    + (gesamt > 1 ? "   ·   Seite " + nr + " von " + gesamt : ""), RAND, RAND + 84);
+  x.strokeStyle = "#000"; x.lineWidth = 2;
+  x.beginPath(); x.moveTo(RAND, RAND + 108); x.lineTo(A4_B - RAND, RAND + 108); x.stroke();
+
+  // Auf einer nur halb gefuellten Seite stehen die Woerter sonst alle links.
+  var hoch = Math.min(PRO_SPALTE, Math.ceil(woerter.length / 2));
+  woerter.forEach(function(v, i){
+    var spalte = i < hoch ? 0 : 1;
+    var sx = RAND + spalte * (SPALTE + LUECKE);
+    var sy = RAND + KOPF + (i - spalte * hoch) * ZEILE;
+    var zahl = karte(v.id).fehler + "×";
+
+    x.font = "600 20px " + C_JP;
+    var zb = x.measureText(zahl).width;
+    x.fillStyle = "#000";
+    x.fillText(zahl, sx + SPALTE - zb, sy);
+
+    var g = passendeGroesse(x, v.kana, SPALTE - zb - 130, 30, 20);
+    x.font = "600 " + g + "px " + C_JP;
+    x.fillText(v.kana, sx, sy);
+    var kb = x.measureText(v.kana).width;
+
+    x.font = "19px " + C_MONO;
+    x.fillStyle = "#666";
+    x.fillText(kuerze(x, v.romaji, SPALTE - kb - zb - 24), sx + kb + 14, sy);
+
+    x.font = "22px " + C_JP;
+    x.fillStyle = "#222";
+    x.fillText(kuerze(x, v.de, SPALTE), sx, sy + 30);
+
+    x.strokeStyle = "#ddd"; x.lineWidth = 1;
+    x.beginPath(); x.moveTo(sx, sy + 46.5); x.lineTo(sx + SPALTE, sy + 46.5); x.stroke();
+  });
+  return c;
+}
+
+function teilenAnbieten(){
+  var d = druckDateien.filter(Boolean);
+  var geht = d.length > 0 && d.length === druckDateien.length
+    && !!navigator.canShare && navigator.canShare({ files: d });
+  $("#druckTeilen").hidden = !geht;
+  $("#druckHinweis").innerHTML = geht
+    ? "<b>Blatt teilen</b> legt es in Fotos oder Dateien - von dort nimmt es "
+      + "die Netprint-App zum Ausdrucken. Es geht auch ohne: lange auf das "
+      + "Blatt tippen und <b>Bild sichern</b> wählen."
+    : "Lange auf das Blatt tippen und <b>Bild sichern</b> wählen. Dann liegt es "
+      + "in Fotos, und die Netprint-App druckt es im Laden aus.";
+}
+
+function druckblattOeffnen(){
+  var w = problemWoerter();
+  if(!w.length){ melde("Noch keine Problemwörter"); return; }
+
+  var seiten = [];
+  for(var i = 0; i < w.length; i += PRO_SEITE) seiten.push(w.slice(i, i + PRO_SEITE));
+
+  var ziel = $("#druckSeiten");
+  ziel.innerHTML = "";
+  druckDateien = new Array(seiten.length);
+  $("#druckTeilen").hidden = true;
+  $("#druckHinweis").textContent = "Blatt wird gesetzt …";
+
+  var offen = seiten.length;
+  seiten.forEach(function(teil, i){
+    var c = malSeite(teil, i + 1, seiten.length);
+    var bild = new Image();
+    bild.className = "druckseite";
+    bild.alt = "Problemwörter, Seite " + (i + 1) + " von " + seiten.length;
+    bild.src = c.toDataURL("image/png");
+    ziel.appendChild(bild);
+    // Die Datei fürs Teilen entsteht nebenher; das Bild steht schon.
+    c.toBlob(function(b){
+      if(b) druckDateien[i] = new File([b], "problemwoerter-" + (i + 1) + ".png",
+                                       { type: "image/png" });
+      if(--offen === 0) teilenAnbieten();
+    }, "image/png");
+  });
+  blattAuf("#druckblatt");
 }
 
 /* ---------- Blätter von unten ---------- */
@@ -715,6 +843,15 @@ function verdrahten(){
   $("#sucheFeld").addEventListener("input", function(){
     clearTimeout(suchUhr);
     suchUhr = setTimeout(zeichneListe, 120);
+  });
+
+  $("#druckKnopf").addEventListener("click", druckblattOeffnen);
+  $("#druckblattZu").addEventListener("click", blattZu);
+  $("#druckTeilen").addEventListener("click", function(){
+    var d = druckDateien.filter(Boolean);
+    if(!d.length) return;
+    // Aus der Geste heraus teilen; die Dateien liegen schon fertig bereit.
+    navigator.share({ files: d, title: "Problemwörter" }).catch(function(){});
   });
 
   $("#knopfEinstellungen").addEventListener("click", function(){ blattAuf("#blatt"); });

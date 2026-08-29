@@ -653,6 +653,14 @@ textarea{
 }
 .meldung.auf{opacity:1;transform:translate(-50%,0);}
 
+/* Blatt zum Ausdrucken: immer weiss, auch im dunklen Thema - es zeigt
+   Papier, nicht Oberflaeche. */
+.druckseite{
+  display:block;width:100%;height:auto;background:#fff;
+  border:1px solid var(--linie);border-radius:var(--r-s);
+  margin:0 0 14px;
+}
+
 /* ---------- 12. Drucken ---------- */
 @media print{
   .kopf,.leiste,.filterknopf,.segment,.knoepfe,.umdrehknopf,.sitzung,
