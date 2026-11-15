@@ -1,0 +1,423 @@
+/* ==================================================================
+   道場 - Dojo
+   Gestaltung des Zusatzes. Baut auf app.css auf und hält sich an
+   dieselbe Regel: Flächen statt Rahmen, Grün führt. Farbe bringen
+   hier die Bilder mit.
+   ================================================================== */
+
+:root{
+  --stempel:#C4382C;
+}
+:root[data-thema="dunkel"]{
+  --stempel:#F08C7C;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-thema="hell"]){
+    --stempel:#F08C7C;
+  }
+}
+
+/* ---------- 1. Bilder ---------- */
+.bild{display:block;width:100%;height:100%;overflow:visible;}
+
+/* Im Dunkeln verschwinden schwarze Dinge wie Kamera oder Fahrradrahmen
+   auf der Karte. Ein heller Saum hält den Umriss lesbar. */
+:root[data-thema="dunkel"] .bild{filter:drop-shadow(0 0 .7px rgba(255,255,255,.7));}
+@media (prefers-color-scheme: dark){
+  :root:not([data-thema="hell"]) .bild{filter:drop-shadow(0 0 .7px rgba(255,255,255,.7));}
+}
+
+/* Bild auf der Karteikarte */
+.kartenbild{width:64px;height:64px;flex:none;margin-bottom:8px;}
+.seite.mitbild .strich{margin:11px 0;}
+@media (max-height: 700px){
+  .kartenbild{width:48px;height:48px;margin-bottom:5px;}
+}
+
+/* ---------- 2. Übersicht ---------- */
+.dhubkopf{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  margin:2px 2px 4px;
+}
+.dname{display:flex;align-items:baseline;gap:9px;}
+.dname b{font-size:1.75rem;font-weight:700;letter-spacing:.06em;line-height:1.2;}
+.dname span{
+  font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--grau);
+}
+.dmarken{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.dmarke{
+  display:inline-flex;align-items:center;gap:5px;
+  background:var(--bg-2);color:var(--text-2);
+  border-radius:999px;padding:5px 11px;
+  font-size:.76rem;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+
+.dkachel{
+  width:100%;display:flex;align-items:center;gap:13px;
+  background:var(--flaeche);border-radius:var(--r-m);
+  padding:12px 15px 12px 12px;margin-bottom:8px;text-align:left;
+  transition:transform .16s cubic-bezier(.22,.85,.3,1);
+}
+.dkachel:active{background:var(--flaeche-2);transform:scale(.985);}
+.dzeichen{
+  flex:none;width:46px;height:46px;border-radius:14px;
+  display:grid;place-items:center;
+  background:color-mix(in srgb, var(--akzent) 13%, var(--flaeche));
+  color:var(--akzent);font-size:1.4rem;font-weight:700;line-height:1;
+}
+@supports not (background: color-mix(in srgb, red 50%, blue)){
+  .dzeichen{background:var(--bg-2);}
+}
+.dzeichen.bildzeichen{background:var(--bg-2);padding:8px;}
+.dtext{flex:1;min-width:0;}
+.dtext b{display:block;font-size:.95rem;font-weight:600;line-height:1.5;}
+.dtext b ruby rt{font-size:.5em;}
+.dtext span{display:block;font-size:.78rem;color:var(--grau);line-height:1.4;}
+.dzahl{
+  flex:none;font-size:.74rem;font-weight:600;color:var(--grau);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.dzahl.fertig{color:var(--akzent);}
+.dquelle{
+  font-size:.74rem;color:var(--grau);line-height:1.6;padding:14px 4px 0;
+}
+.dquelle a{color:var(--akzent);font-weight:600;text-decoration:none;}
+
+/* ---------- 3. Kopf einer Übung ---------- */
+.dkopf{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.dkopf h2{flex:1;min-width:0;margin:0;font-size:1.04rem;}
+.dzurueck{
+  flex:none;width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;background:var(--bg-2);color:var(--text-2);
+}
+.dzurueck:active{background:var(--flaeche-2);}
+.dzurueck svg{width:19px;height:19px;}
+.dpille{
+  flex:none;background:var(--bg-2);color:var(--text-2);
+  border-radius:999px;padding:7px 13px;font-size:.78rem;font-weight:700;
+}
+.dpille:active{background:var(--flaeche-2);}
+.dhinweis{font-size:.8rem;color:var(--grau);line-height:1.55;margin:0 2px 12px;}
+.dwahl .segment button{padding:9px 4px;}
+
+/* ---------- 4. Frage ---------- */
+.dauftrag{
+  font-size:.86rem;color:var(--text-2);line-height:1.6;margin:0 2px 10px;
+}
+.dauftrag .jp{font-weight:700;color:var(--text);margin-right:4px;}
+.dtyp{
+  display:inline-block;background:var(--bg-2);color:var(--grau);
+  border-radius:8px;padding:1px 8px;margin-right:8px;
+  font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  vertical-align:1px;
+}
+.dkarte{
+  background:var(--flaeche);border-radius:var(--r-l);box-shadow:var(--schatten-m);
+  min-height:150px;padding:22px 18px;margin-bottom:12px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;
+  animation:karte-auf .36s cubic-bezier(.22,.85,.3,1) both;
+}
+.dgrossbild{width:128px;height:128px;}
+.dgrossbild.klein{width:92px;height:92px;}
+.dszene{display:grid;place-items:center;width:100%;}
+
+.dsatz{
+  font-size:1.28rem;font-weight:600;line-height:1.95;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+ruby rt{font-size:.5em;font-weight:500;color:var(--grau);letter-spacing:0;}
+u.ziel{
+  text-decoration:underline;text-decoration-color:var(--akzent);
+  text-decoration-thickness:2.5px;text-underline-offset:6px;
+}
+.luecke{color:var(--akzent);white-space:nowrap;}
+b.rein{color:var(--gruen);font-weight:700;}
+.lz{
+  display:inline-block;width:2.1em;height:1.3em;margin:0 3px;
+  border-bottom:2.5px solid var(--linie-stark);vertical-align:-0.25em;
+  text-align:center;line-height:1.25;
+}
+.lz.st{border-color:var(--akzent);color:var(--akzent);font-size:.9em;}
+
+/* Hören */
+.dhoerfeld{display:flex;flex-direction:column;align-items:center;gap:9px;width:100%;}
+.dhoer{
+  width:86px;height:86px;border-radius:50%;
+  display:grid;place-items:center;
+  background:var(--gruen);color:var(--auf-gruen);
+  transition:transform .16s cubic-bezier(.22,.85,.3,1);
+}
+.dhoer svg{width:38px;height:38px;}
+.dhoer:active{transform:scale(.95);}
+@keyframes hoer-puls{
+  0%  { box-shadow:0 0 0 0 color-mix(in srgb, var(--gruen) 45%, transparent); }
+  100%{ box-shadow:0 0 0 16px transparent; }
+}
+.dhoer.laeuft{animation:hoer-puls 1s ease-out infinite;}
+.dhoertipp{font-size:.76rem;color:var(--grau);}
+.dtextzeigen{font-size:.8rem;font-weight:600;color:var(--grau);text-decoration:underline;padding:4px 8px;}
+
+/* ---------- 5. Antworten ---------- */
+.dopts{display:grid;gap:8px;margin-bottom:12px;}
+.dopts.wort,.dopts.bild{grid-template-columns:1fr 1fr;}
+.dopt{
+  background:var(--flaeche);border-radius:var(--r-m);
+  min-height:60px;padding:13px 10px;
+  display:flex;align-items:center;justify-content:center;text-align:center;
+  font-size:1.1rem;font-weight:600;line-height:1.9;
+  word-break:keep-all;overflow-wrap:anywhere;
+  transition:transform .16s cubic-bezier(.22,.85,.3,1), opacity .2s, background .16s;
+}
+.dopt:not(:disabled):active{background:var(--flaeche-2);transform:scale(.97);}
+.dopt:disabled{cursor:default;}
+.dopts.satz .dopt{
+  justify-content:flex-start;text-align:left;
+  padding:11px 15px;font-size:1.02rem;min-height:54px;
+}
+.dopts.bild .dopt{padding:14px 10px;min-height:112px;}
+.dopts.bild .dopt > .bild{width:78px;height:78px;}
+
+.dopt.ok{
+  background:color-mix(in srgb, var(--gruen) 15%, var(--flaeche));
+  box-shadow:inset 0 0 0 2px var(--gruen);
+}
+.dopt.falsch{background:var(--rot-weich);color:var(--rot);box-shadow:inset 0 0 0 2px var(--rot);}
+.dopt.blass{opacity:.45;}
+@supports not (background: color-mix(in srgb, red 50%, blue)){
+  .dopt.ok{background:var(--flaeche-2);}
+}
+
+/* ---------- 6. Auflösung ---------- */
+.durteil{font-size:.88rem;font-weight:600;margin:2px 3px 9px;}
+.durteil b{font-size:1.02rem;margin-right:6px;}
+.durteil.gut{color:var(--gruen);}
+.durteil.schlecht{color:var(--rot);}
+
+.dwort{
+  display:flex;align-items:center;gap:13px;
+  background:var(--flaeche);border-radius:var(--r-m);
+  padding:11px 12px 11px 14px;margin-bottom:8px;
+}
+.dwbild{flex:none;width:46px;height:46px;}
+.dwtext{flex:1;min-width:0;}
+.dwtext b{font-size:1.2rem;font-weight:700;line-height:1.4;}
+.dwkanji{font-size:.95rem;color:var(--grau);margin-left:9px;}
+.dwromaji{display:block;font-family:var(--mono);font-size:.74rem;color:var(--grau);letter-spacing:.03em;}
+.dwde{display:block;font-size:.9rem;color:var(--text-2);line-height:1.4;}
+.dwort.gross{padding:16px;}
+.dwort.gross .dwbild{width:88px;height:88px;}
+.dwort.gross .dwtext b{font-size:1.5rem;}
+.dwort .tonknopf,.lsatz .tonknopf{position:static;flex:none;}
+
+.dbeispiel{
+  display:block;width:100%;text-align:left;
+  background:var(--flaeche);border-radius:var(--r-m);
+  padding:10px 15px 12px;margin-bottom:8px;
+}
+.dbeispiel:active{background:var(--flaeche-2);}
+.dbeispiel .jp{
+  display:block;font-size:1.04rem;font-weight:600;line-height:1.85;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+.dbeispiel .de{display:block;font-size:.84rem;color:var(--text-2);line-height:1.45;}
+.dbeispiel.laeuft .jp{color:var(--akzent);}
+#steuerung + .dbeispiel{margin-top:10px;}
+
+.dtipp{
+  background:var(--info-bg);color:var(--info-text);
+  border-left:3px solid var(--info-rand);border-radius:0 var(--r-s) var(--r-s) 0;
+  padding:10px 13px;margin:0 0 8px;font-size:.85rem;line-height:1.6;
+}
+.dtipp ruby rt{color:inherit;opacity:.75;}
+
+/* Der Knopf rollt nach der Antwort ins Bild - aber nicht unter die Leiste. */
+#dWeiter{scroll-margin-bottom:calc(var(--leiste-h) + var(--unten) + 18px);}
+
+/* ---------- 7. Ergebnis und Stempel ---------- */
+.stempel{
+  fill:none;stroke:var(--stempel);stroke-width:4.5;
+  stroke-linecap:round;stroke-linejoin:round;
+}
+.stempel.mini{width:15px;height:15px;stroke-width:8;flex:none;}
+.stempel.gross{width:132px;height:132px;transform:rotate(-7deg);}
+@keyframes stempel-zug{ to{ stroke-dashoffset:0; } }
+.stempel.gross path,.stempel.gross circle{
+  stroke-dasharray:1;stroke-dashoffset:1;
+  animation:stempel-zug 1.15s cubic-bezier(.4,.1,.3,1) .12s forwards;
+}
+.stempel.gross circle + circle{animation-delay:.45s;}
+
+.dergebnis{text-align:center;padding:14px 0 12px;}
+.dergebnis .stempel{margin:0 auto 6px;}
+.dspruch{font-size:1.22rem;font-weight:700;color:var(--stempel);letter-spacing:.04em;}
+.dpunkte{font-size:.95rem;color:var(--text-2);margin-top:6px;}
+.dpunkte b{font-size:1.7rem;color:var(--text);font-variant-numeric:tabular-nums;margin-right:2px;}
+.dergebnis p{font-size:.86rem;color:var(--grau);margin-top:2px;}
+
+.dkurzliste{background:var(--flaeche);border-radius:var(--r-m);overflow:hidden;margin-bottom:14px;}
+.dkurz{
+  display:flex;align-items:center;gap:11px;
+  padding:9px 14px;border-top:1px solid var(--linie);
+  font-size:.9rem;color:var(--text-2);line-height:1.9;
+}
+.dkurz:first-child{border-top:0;}
+.dkurz > .bild{flex:none;width:30px;height:30px;}
+.dkurz b{color:var(--text);font-size:1.02rem;margin-right:6px;}
+.dkurz .jp{color:var(--text);min-width:0;word-break:keep-all;overflow-wrap:anywhere;}
+.dkurzzeichen{
+  flex:none;background:var(--bg-2);color:var(--grau);border-radius:8px;
+  padding:1px 8px;font-size:.66rem;font-weight:700;line-height:1.9;white-space:nowrap;
+}
+.dkurzzeichen.jp{font-size:.9rem;padding:1px 7px;}
+
+/* ---------- 8. Paare finden ---------- */
+.pgitter{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;}
+.pkarte{aspect-ratio:1 / 1;perspective:700px;display:block;}
+.pinnen{
+  position:relative;display:block;width:100%;height:100%;
+  transform-style:preserve-3d;
+  transition:transform .38s cubic-bezier(.3,.9,.35,1);
+}
+.pkarte.auf .pinnen{transform:rotateY(180deg);}
+.prueck,.pvorn{
+  position:absolute;inset:0;border-radius:var(--r-m);
+  -webkit-backface-visibility:hidden;backface-visibility:hidden;
+  display:grid;place-items:center;
+}
+.prueck{
+  background:var(--gruen-tief);
+  color:color-mix(in srgb, var(--auf-gruen) 38%, transparent);
+  font-size:1.9rem;font-weight:700;
+}
+.pvorn{
+  background:var(--flaeche);transform:rotateY(180deg);
+  padding:8px;text-align:center;
+  font-size:1rem;font-weight:700;line-height:1.3;overflow-wrap:anywhere;
+  transition:background .25s, box-shadow .25s;
+}
+.pvorn > .bild{width:66%;height:66%;}
+.pkarte.paar .pvorn{
+  background:color-mix(in srgb, var(--gruen) 15%, var(--flaeche));
+  box-shadow:inset 0 0 0 2px var(--gruen);
+}
+
+/* ---------- 9. Bilderbuch ---------- */
+.bgitter{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
+  content-visibility:auto;contain-intrinsic-size:auto 420px;
+}
+.bfeld{
+  background:var(--flaeche);border-radius:var(--r-s);
+  padding:11px 3px 8px;min-width:0;
+  display:flex;flex-direction:column;align-items:center;gap:5px;
+}
+.bfeld:active{background:var(--flaeche-2);}
+.bfeld .bild{width:40px;height:40px;}
+.bfeld span{
+  font-size:.68rem;font-weight:600;line-height:1.3;text-align:center;
+  max-width:100%;overflow-wrap:anywhere;
+}
+
+/* ---------- 10. Zahlen und Zeit ---------- */
+.uhr{width:150px;height:150px;}
+.uhrrand{fill:#fff;stroke:#27312B;stroke-width:3.5;}
+.uhrstrich{stroke:#27312B;stroke-width:1.3;stroke-linecap:round;}
+.uhrzahl{font:700 8.6px var(--ui);fill:#27312B;text-anchor:middle;}
+.uhrstunde{stroke:#27312B;stroke-width:5;stroke-linecap:round;}
+.uhrminute{stroke:#1F6F4F;stroke-width:3;stroke-linecap:round;}
+.uhrmitte{fill:#27312B;}
+
+.preis{display:flex;align-items:center;justify-content:center;gap:14px;}
+.preis > .bild{width:76px;height:76px;flex:none;}
+.pschild{
+  position:relative;background:#FFF3CF;color:#3A2E12;
+  border-radius:10px;padding:8px 16px 8px 28px;
+  font-size:1.7rem;font-weight:700;line-height:1.3;
+  font-variant-numeric:tabular-nums;white-space:nowrap;
+}
+.pschild::before{
+  content:"";position:absolute;left:10px;top:50%;
+  width:8px;height:8px;margin-top:-4px;border-radius:50%;background:var(--flaeche);
+}
+.pschild i{font-style:normal;font-size:.68em;margin-right:3px;opacity:.7;}
+
+.anzahl{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;max-width:240px;}
+.anzahl .bild{width:40px;height:40px;flex:none;}
+
+.kalender{
+  display:inline-flex;flex-direction:column;width:124px;
+  background:#fff;color:#1B211D;border-radius:13px;overflow:hidden;
+  box-shadow:0 0 0 1.5px var(--linie-stark);text-align:center;
+}
+.kmonat{background:#C4382C;color:#fff;font-size:.98rem;font-weight:700;padding:3px 0 4px;}
+.ktag{font-size:2.7rem;font-weight:800;line-height:1.2;font-variant-numeric:tabular-nums;}
+.kwtag{font-size:.84rem;font-weight:600;color:#59625C;padding-bottom:8px;}
+
+.szene{width:100%;max-width:290px;height:auto;}
+.szene .boden{stroke:var(--linie-stark);stroke-width:1.5;stroke-linecap:round;}
+
+/* Dieselben Bilder klein, als Antworten beim Hören */
+.dopts.szenen .dopt{min-height:122px;padding:12px 8px;line-height:1.3;}
+.dopts.szenen .uhr{width:96px;height:96px;}
+.dopts.szenen .preis{flex-direction:column;gap:7px;}
+.dopts.szenen .preis > .bild{width:46px;height:46px;}
+.dopts.szenen .pschild{font-size:1.02rem;padding:4px 10px 4px 21px;border-radius:8px;}
+.dopts.szenen .pschild::before{left:8px;width:6px;height:6px;margin-top:-3px;}
+.dopts.szenen .anzahl{gap:3px;max-width:128px;}
+.dopts.szenen .anzahl .bild{width:22px;height:22px;}
+.dopts.szenen .kalender{width:94px;border-radius:11px;}
+.dopts.szenen .kmonat{font-size:.8rem;}
+.dopts.szenen .ktag{font-size:1.9rem;}
+.dopts.szenen .kwtag{font-size:.72rem;padding-bottom:6px;}
+
+/* ---------- 11. Lesetexte ---------- */
+.lkopf{display:flex;align-items:center;gap:15px;margin:4px 2px 14px;}
+.lbild{flex:none;width:62px;height:62px;}
+.lkopf h2{margin:0;font-size:1.3rem;line-height:1.9;}
+.lkopf p{font-size:.84rem;color:var(--grau);}
+
+.tafel{
+  background:var(--info-bg);color:var(--text);
+  border-radius:var(--r-m);padding:15px 16px 14px;margin-bottom:12px;
+}
+.ttitel{
+  font-size:1.04rem;font-weight:700;text-align:center;line-height:1.9;
+  padding-bottom:7px;margin-bottom:4px;border-bottom:2px solid var(--info-rand);
+}
+.tgruppe{font-size:.78rem;font-weight:700;color:var(--info-text);letter-spacing:.06em;margin:11px 0 0;}
+.tzeile{
+  display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:0 14px;
+  padding:4px 0;border-bottom:1px dashed var(--info-rand);
+  font-size:.95rem;line-height:1.9;
+}
+.tname{flex:1 1 auto;min-width:0;}
+.twert{flex:none;white-space:nowrap;font-variant-numeric:tabular-nums;}
+/* Drei Angaben: der Name bekommt eine eigene Zeile, darunter Zeit und Preis. */
+.tzeile.drei .tname{flex:0 0 100%;font-weight:600;}
+.tzeile.drei .twert{font-size:.9rem;}
+.tfuss{font-size:.84rem;color:var(--info-text);line-height:1.9;margin-top:9px;}
+.tfuss + .tfuss{margin-top:0;}
+
+.lsaetze{background:var(--flaeche);border-radius:var(--r-m);overflow:hidden;margin-bottom:10px;}
+.lsatz{display:flex;align-items:flex-start;border-top:1px solid var(--linie);}
+.lsatz:first-child{border-top:0;}
+.lsatztext{flex:1;min-width:0;text-align:left;padding:9px 6px 11px 15px;}
+.lsatztext .jp{
+  display:block;font-size:1.08rem;font-weight:500;line-height:1.9;
+  word-break:keep-all;overflow-wrap:anywhere;
+}
+.lsatztext .de{display:block;font-size:.86rem;color:var(--text-2);line-height:1.5;margin-top:1px;}
+.lsatz .tonknopf{width:36px;height:36px;margin:11px 10px 0 0;background:var(--bg-2);}
+.lsatz .tonknopf svg{width:17px;height:17px;}
+.lknoepfe{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+.lknoepfe .knopf:only-child{grid-column:1 / -1;}
+.knopf.laeuft{color:var(--akzent);}
+
+.lfrage{margin-bottom:18px;}
+.lfrage > p.jp{font-size:1.02rem;font-weight:600;line-height:2;margin:0 3px 7px;}
+.lfrage .dopts{margin-bottom:8px;}
+
+/* ---------- 12. Drucken ---------- */
+@media print{
+  #dojo{display:none !important;}
+}

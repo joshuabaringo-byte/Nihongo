@@ -216,7 +216,7 @@ section[hidden]{display:none;}
 .leiste .inner{
   max-width:620px;margin:0 auto;
   height:var(--leiste-h);
-  display:grid;grid-template-columns:repeat(4,1fr);
+  display:grid;grid-template-columns:repeat(5,1fr);
 }
 .leiste button{
   position:relative;
