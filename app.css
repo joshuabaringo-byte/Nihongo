@@ -689,6 +689,16 @@ textarea{
   -webkit-appearance:none;appearance:none;
 }
 
+/* Unterschrift unter "Über": die Schreibschrift, die das iPhone mitbringt
+   (Snell Roundhand), leicht geneigt. Keine Schrift aus dem Netz, damit sie auch
+   offline da ist; andere Geräte nehmen ihre eigene Schreibschrift. */
+.signatur{
+  font-family:"Snell Roundhand","Savoye LET","Bradley Hand","Apple Chancery",cursive;
+  font-size:1.75rem;line-height:1.3;color:var(--text-2);
+  text-align:right;padding:4px 8px 12px;
+}
+.signatur span{display:inline-block;transform:skewX(-6deg);}
+
 .fuss{
   text-align:center;font-size:.72rem;color:var(--grau);
   padding:22px 16px 4px;line-height:1.6;
