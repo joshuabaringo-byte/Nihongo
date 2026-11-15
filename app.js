@@ -1,6 +1,7 @@
 /* ==================================================================
    ことば - Vokabeltrainer
-   Nutzt V und ABSCHNITTE aus vokabeln.js
+   Nutzt V und ABSCHNITTE aus vokabeln.js, dazu bildFuerKana und bildSvg
+   aus bilder.js, wo es zu einem Wort ein Bild gibt.
    ================================================================== */
 (function () {
 "use strict";
@@ -72,6 +73,7 @@ if(einst.mischen  === undefined) einst.mischen  = true;
 if(einst.limit    === undefined) einst.limit    = 40;
 if(einst.richtung === undefined) einst.richtung = "kana";
 if(einst.filter   === undefined) einst.filter   = { art: "alle", wert: 0 };
+if(einst.bilder   === undefined) einst.bilder   = true;
 
 function standSichern(){ lege(K_STAND, stand); }
 function einstSichern(){ lege(K_EINST, einst); }
@@ -189,9 +191,10 @@ function sprechbar(kana){
     .replace(/[～~]/g, "")
     .trim();
 }
-function sprich(kana, knopf){
+/* roh: der Text ist schon ein ganzer Satz und wird unverändert gelesen. */
+function sprich(kana, knopf, roh){
   if(!spracheDa) return;
-  var text = sprechbar(kana);
+  var text = roh ? String(kana).trim() : sprechbar(kana);
   if(!text) return;
   try{
     window.speechSynthesis.cancel();
@@ -218,15 +221,20 @@ function melde(text){
 }
 
 /* ---------- Bereiche umschalten ---------- */
-var BEREICHE = ["lernen", "stand", "problem", "liste"];
+var BEREICHE = ["lernen", "dojo", "stand", "problem", "liste"];
 var aktiverBereich = "lernen";
 
 function zeige(name){
+  if(aktiverBereich === "dojo" && name !== "dojo" && window.DOJO) window.DOJO.verlassen();
   aktiverBereich = name;
-  BEREICHE.forEach(function(n){ $("#" + n).hidden = (n !== name); });
+  BEREICHE.forEach(function(n){
+    var b = $("#" + n);
+    if(b) b.hidden = (n !== name);      // fehlt nur, wenn das HTML älter ist als dieses Skript
+  });
   $$(".leiste button").forEach(function(b){
     b.setAttribute("aria-selected", b.dataset.ziel === name ? "true" : "false");
   });
+  if(name === "dojo" && window.DOJO) window.DOJO.zeige();
   if(name === "stand")   zeichneStand();
   if(name === "problem") zeichneProblem();
   if(name === "liste")   zeichneListe();
@@ -328,12 +336,18 @@ function zeichneLernen(){
   var wortart = v.wa ? '<span class="wortart">' + esc(v.wa) + "</span>" : "";
   var punkte  = stufenPunkte(k.stufe, "stufenpunkte");
 
+  // Das Bild verrät die Bedeutung. Vorn steht es deshalb nur, wenn dort
+  // ohnehin das Deutsche steht.
+  var b = kartenBild(v);
+  var bildHtml = b ? '<div class="kartenbild">' + bildSvg(b.z) + "</div>" : "";
+  var mitBild  = b ? " mitbild" : "";
+
   var vorneText = einst.richtung === "kana"
     ? '<div class="wort jp">' + esc(v.kana) + "</div>"
-    : '<div class="wort de">' + esc(v.de) + "</div>";
+    : bildHtml + '<div class="wort de">' + esc(v.de) + "</div>";
 
-  var hinten =
-      '<div class="wort jp">' + esc(v.kana) + "</div>"
+  var hinten = bildHtml
+    + '<div class="wort jp">' + esc(v.kana) + "</div>"
     + (einst.romaji ? '<div class="lesung">' + esc(v.romaji) + "</div>" : "")
     + '<div class="strich"></div>'
     + '<div class="bedeutung">' + esc(v.de) + "</div>"
@@ -344,10 +358,10 @@ function zeichneLernen(){
 
   bereich.innerHTML =
       '<div class="buehne"><div class="flip" id="flip">'
-    +   '<div class="seite vorder"><span class="marke">' + esc(marke) + "</span>" + wortart
+    +   '<div class="seite vorder' + mitBild + '"><span class="marke">' + esc(marke) + "</span>" + wortart
     +     vorneText + '<div class="tipp">Tippen zum Umdrehen</div>' + punkte
     +   "</div>"
-    +   '<div class="seite rueck"><span class="marke">' + esc(marke) + "</span>" + wortart
+    +   '<div class="seite rueck' + mitBild + '"><span class="marke">' + esc(marke) + "</span>" + wortart
     +     hinten + punkte
     +   "</div>"
     + "</div></div>"
@@ -358,8 +372,31 @@ function zeichneLernen(){
   karteGesten();
 }
 
+/* Bild zu einem Wort, falls bilder.js geladen ist und Bilder erwünscht sind. */
+function kartenBild(v){
+  if(!einst.bilder || typeof bildFuerKana !== "function") return null;
+  return bildFuerKana(v.kana);
+}
+
+/* Beispielsatz unter den Knöpfen: erst nach dem Umdrehen, sonst verriete
+   er das Wort. Antippen liest ihn vor. */
+function zeichneBeispiel(){
+  var alt = $("#beispiel");
+  if(alt) alt.parentNode.removeChild(alt);
+  if(!umgedreht || !schlange.length) return;
+  var b = kartenBild(schlange[0]);
+  if(!b || !b.satz) return;
+  $("#steuerung").insertAdjacentHTML("afterend",
+      '<button class="dbeispiel" id="beispiel"><span class="jp">' + esc(b.satz) + "</span>"
+    + '<span class="de">' + esc(b.satzDe) + "</span></button>");
+  $("#beispiel").addEventListener("click", function(){
+    sprich(b.satz.replace(/\s+/g, ""), this, true);
+  });
+}
+
 function zeichneSteuerung(){
   var ziel = $("#steuerung");
+  zeichneBeispiel();
   if(!umgedreht){
     ziel.innerHTML = '<button class="umdrehknopf" id="umdrehen">Antwort zeigen</button>';
     $("#umdrehen").addEventListener("click", umdrehen);
@@ -863,6 +900,7 @@ function verdrahten(){
   });
 
   schalter("#schalterRomaji",  "romaji",  function(){ zeichneLernen(); });
+  schalter("#schalterBilder",  "bilder",  function(){ zeichneLernen(); });
   schalter("#schalterTon",     "ton");
   schalter("#schalterMischen", "mischen", function(){ schlangeBauen(false); zeichneLernen(); });
 
@@ -983,6 +1021,13 @@ function start(){
 
   try{ sessionStorage.removeItem(MERKER); }catch(e){ /* egal */ }
 }
+
+/* Was der Zusatz in dojo.js vom Trainer braucht. */
+window.KOTOBA = {
+  esc: esc, einst: einst, hole: hole, lege: lege,
+  sprich: sprich, spracheDa: spracheDa, melde: melde,
+  blattAuf: blattAuf, blattZu: blattZu
+};
 
 try{
   start();

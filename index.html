@@ -23,6 +23,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="dojo.css">
 </head>
 <body>
 
@@ -32,6 +33,9 @@
     <g id="i-lernen" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
       <rect x="3" y="6" width="14" height="14" rx="2.5"/>
       <path d="M7 3h11a2.5 2.5 0 0 1 2.5 2.5V16"/>
+    </g>
+    <g id="i-dojo" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M3 5.5c4 1.3 14 1.3 18 0M5.5 10h13M7.5 6.3V20M16.5 6.3V20"/>
     </g>
     <g id="i-stand" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
       <path d="M4 20V11M10 20V4M16 20v-6M22 20H2"/>
@@ -97,6 +101,11 @@
     <div id="kartenbereich"></div>
   </section>
 
+  <!-- ===== Dojo: Bilder, Lesetexte, JLPT ===== -->
+  <section id="dojo" hidden aria-label="Dojo">
+    <div id="dojoInhalt"></div>
+  </section>
+
   <!-- ===== Stand ===== -->
   <section id="stand" hidden aria-label="Fortschritt">
     <div class="kacheln" id="kacheln"></div>
@@ -131,6 +140,9 @@
     <button role="tab" data-ziel="lernen" aria-selected="true">
       <svg viewBox="0 0 24 24"><use href="#i-lernen"/></svg>Lernen
     </button>
+    <button role="tab" data-ziel="dojo" aria-selected="false">
+      <svg viewBox="0 0 24 24"><use href="#i-dojo"/></svg>Dojo
+    </button>
     <button role="tab" data-ziel="stand" aria-selected="false">
       <svg viewBox="0 0 24 24"><use href="#i-stand"/></svg>Stand
     </button>
@@ -154,6 +166,18 @@
     </button>
   </div>
   <div class="inhalt" id="filterliste"></div>
+</div>
+
+<!-- ===== Blatt des Dojos: Auswahl und Bilddetails ===== -->
+<div class="blatt" id="dojoblatt" role="dialog" aria-modal="true" aria-labelledby="dojoblattTitel">
+  <div class="griff"></div>
+  <div class="blattkopf">
+    <h2 id="dojoblattTitel"></h2>
+    <button class="schliessen" id="dojoblattZu" aria-label="Schließen">
+      <svg viewBox="0 0 24 24"><use href="#i-zu"/></svg>
+    </button>
+  </div>
+  <div class="inhalt" id="dojoblattInhalt"></div>
 </div>
 
 <!-- ===== Blatt zum Ausdrucken ===== -->
@@ -201,6 +225,13 @@
     </div>
     <div class="opt">
       <span class="beschriftung">
+        <b>Bilder zeigen</b>
+        <span>Bild und Beispielsatz auf der Karte, wo es eines gibt</span>
+      </span>
+      <button class="schalter" role="switch" id="schalterBilder" aria-checked="true" aria-label="Bilder zeigen"></button>
+    </div>
+    <div class="opt">
+      <span class="beschriftung">
         <b>Aussprache vorlesen</b>
         <span>Japanische Stimme des iPhones, automatisch beim Umdrehen</span>
       </span>
@@ -238,12 +269,19 @@
       Wiederholung nach 1, 2, 4, 8, 17 und 35 Tagen.
       Zum Installieren in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b> tippen.
     </p>
+    <p style="font-size:.8rem;color:var(--grau);line-height:1.6;padding-bottom:8px">
+      Bilder: Twemoji, © Twitter, Inc und Mitwirkende, Lizenz CC-BY 4.0.
+      Aufgaben und Lesetexte im Dojo sind eigens für diese App geschrieben.
+    </p>
   </div>
 </div>
 
 <div class="meldung" id="meldung" role="status" aria-live="polite"></div>
 
 <script src="vokabeln.js"></script>
+<script src="bilder.js"></script>
+<script src="dojo-daten.js"></script>
 <script src="app.js"></script>
+<script src="dojo.js"></script>
 </body>
 </html>
