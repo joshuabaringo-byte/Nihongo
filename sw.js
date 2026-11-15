@@ -1,6 +1,6 @@
 /* Service Worker: hält die App offline verfügbar.
    Bei jeder Änderung an den Dateien die VERSION erhöhen. */
-var VERSION = "kotoba-v22";
+var VERSION = "kotoba-v24";
 var DATEIEN = [
   "./",
   "./index.html",
@@ -16,6 +16,7 @@ var DATEIEN = [
   "./dojo-daten.js",
   "./manifest.webmanifest",
   "./favicon.svg",
+  "./schrift/ms-madi-latin-400-normal.woff2",
   "./icons/apple-touch-icon.png",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

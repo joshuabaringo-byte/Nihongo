@@ -689,6 +689,22 @@ textarea{
   -webkit-appearance:none;appearance:none;
 }
 
+/* Unterschrift unter "Über" in einer Signatur-Schrift: Ms Madi, SIL Open Font
+   License 1.1 (schrift/OFL.txt). Die Datei liegt bei der App und wird vom
+   Service Worker vorgehalten, damit die Zeile auch ohne Netz so aussieht.
+   Der feine Strich ist leicht verstärkt, sonst wirkt er auf dem Telefon zu dünn. */
+@font-face{
+  font-family:"Ms Madi";
+  src:url("schrift/ms-madi-latin-400-normal.woff2") format("woff2");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+.signatur{
+  font-family:"Ms Madi","Snell Roundhand","Savoye LET",cursive;
+  font-size:2.4rem;line-height:1.3;color:var(--text-2);
+  -webkit-text-stroke:.014em currentColor;
+  text-align:right;padding:8px 12px 18px;
+}
+
 .fuss{
   text-align:center;font-size:.72rem;color:var(--grau);
   padding:22px 16px 4px;line-height:1.6;
