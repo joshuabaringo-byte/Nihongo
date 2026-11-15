@@ -312,5 +312,6 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `dojo-daten.js` | JLPT-Aufgaben und Lesetexte |
 | `dojo.css` | Gestaltung des Dojos |
 | `werkzeug/bilder-bauen.js` | baut `bilder.svg` neu |
+| `schrift/` | Ms Madi, die Schrift der Unterschrift unter *Über* (SIL Open Font License 1.1, Text in `schrift/OFL.txt`) |
 | `sw.js` | Offlinebetrieb |
 | `manifest.webmanifest` | Angaben für den Home-Bildschirm |
