@@ -92,6 +92,7 @@
     <div class="segment nichtdrucken" role="group" aria-label="Abfragerichtung">
       <button id="rtgKana" aria-pressed="true" data-rtg="kana"><span class="jp">かな</span> → Deutsch</button>
       <button id="rtgDe" aria-pressed="false" data-rtg="de">Deutsch → <span class="jp">かな</span></button>
+      <button id="rtgKanji" aria-pressed="false" data-rtg="kanji"><span class="jp">漢字</span> → <span class="jp">かな</span></button>
     </div>
     <div class="sitzung nichtdrucken" id="sitzungsleiste" hidden>
       <span id="sitzungText">0</span>
@@ -127,7 +128,12 @@
     <div class="suche nichtdrucken">
       <svg viewBox="0 0 24 24"><use href="#i-lupe"/></svg>
       <input id="sucheFeld" type="search" inputmode="search" autocomplete="off"
-             spellcheck="false" placeholder="Kana, Rōmaji oder Bedeutung suchen">
+             spellcheck="false" placeholder="Kana, Kanji, Rōmaji oder Bedeutung suchen">
+    </div>
+    <div class="segment nichtdrucken" id="listeStufe" role="group" aria-label="Stufe">
+      <button data-stufe="0" aria-pressed="true">Alle</button>
+      <button data-stufe="5" aria-pressed="false">N5</button>
+      <button data-stufe="4" aria-pressed="false">N4</button>
     </div>
     <div id="vollListe"></div>
   </section>
@@ -225,6 +231,13 @@
     </div>
     <div class="opt">
       <span class="beschriftung">
+        <b>Kanji zeigen</b>
+        <span>Schreibung in Kanji unter dem Kana auf der Rückseite</span>
+      </span>
+      <button class="schalter" role="switch" id="schalterKanji" aria-checked="true" aria-label="Kanji zeigen"></button>
+    </div>
+    <div class="opt">
+      <span class="beschriftung">
         <b>Bilder zeigen</b>
         <span>Bild und Beispielsatz auf der Karte, wo es eines gibt</span>
       </span>
@@ -270,6 +283,7 @@
       Zum Installieren in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b> tippen.
     </p>
     <p style="font-size:.8rem;color:var(--grau);line-height:1.6;padding-bottom:8px">
+      JLPT-Wortauswahl N5 und N4: Jonathan Waller, tanos.co.uk/jlpt, Lizenz CC BY 4.0.
       Bilder: Twemoji, © Twitter, Inc und Mitwirkende, Lizenz CC-BY 4.0.
       Aufgaben und Lesetexte im Dojo sind eigens für diese App geschrieben.
     </p>
@@ -278,6 +292,7 @@
 
 <div class="meldung" id="meldung" role="status" aria-live="polite"></div>
 
+<script src="vokabeln-jlpt.js"></script>
 <script src="vokabeln.js"></script>
 <script src="bilder.js"></script>
 <script src="dojo-daten.js"></script>

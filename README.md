@@ -1,8 +1,9 @@
 # ことば · Vokabeltrainer
 
 Privater Vokabeltrainer für Japanisch, gebaut für das iPhone.
-854 Wörter aus den Grundlagen und Topic 1 bis 7, Karteikarten mit Wiederholung nach Plan,
-Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
+1.762 Wörter: die 854 aus den Grundlagen und Topic 1 bis 7 und dazu der Wortschatz der
+JLPT-Stufen **N5 (718 Wörter)** und **N4 (667 Wörter)**. Karteikarten mit Wiederholung
+nach Plan, Fortschrittsübersicht, Problemwortliste und vollständige Wortliste.
 
 Dazu das **Dojo**: Bilderquiz, Paare finden, Zahlen und Zeit, Aufgaben im Format
 des JLPT für N5 und N4 und kurze Lesetexte. Wo es zu einem Wort ein Bild gibt,
@@ -44,9 +45,11 @@ gespeichert. In Safari selbst löscht iOS ihn nach etwa sieben Tagen ohne Besuch
 | Nach rechts wischen | wie sitzt |
 | Auf ein Wort in den Listen tippen | Aussprache anhören |
 | Auf einen Abschnitt unter *Stand* tippen | genau diesen Abschnitt üben |
-| Auf die Auswahlzeile über der Karte tippen | Topic oder Abschnitt wählen |
-
+| Auf **Alle N5-Wörter** oder **Alle N4-Wörter** unter *Stand* tippen | die ganze Stufe üben |
+| Auf die Auswahlzeile über der Karte tippen | Stufe, Topic oder Abschnitt wählen |
 | Auf den Beispielsatz unter der Karte tippen | Satz anhören |
+| Über der Karte **漢字 → かな** wählen | Kanji vorn, Kana und Bedeutung hinten (ohne Kanji bleibt das Kana) |
+| In der Liste **N5** oder **N4** wählen | nur Wörter dieser Stufe anzeigen |
 
 Am Rechner gehen zusätzlich Leertaste (umdrehen und sitzt) sowie die Tasten 1, 2 und 3.
 
@@ -88,6 +91,45 @@ Uhr, Preisschild, Kalender, Tisch und Schachtel sind selbst gezeichnet.
 Die Zuordnung der Bildwörter zu N5 und N4 folgt den üblichen inoffiziellen Listen;
 eine amtliche Wortliste gibt es seit 2010 nicht mehr.
 
+## JLPT-Wortschatz N5 und N4
+
+Die beiden Stufen stehen als eigene Gruppen **JLPT N5** (9 Abschnitte) und **JLPT N4**
+(17 Abschnitte) neben den Topics, geordnet nach Themen: Menschen, Zeit, Orte, Haushalt,
+Verben der Bewegung, des Alltags und des Denkens, Adjektive, Wendungen und Zähler.
+
+Was schon in deinen Topics steht, kommt nicht noch einmal vor. Es bleibt dort, wo du
+es gelernt hast, und trägt dazu seine Stufe. Deshalb gibt es unter der Auswahl
+**Alle N5-Wörter** und **Alle N4-Wörter**: sie holen die Wörter aus beiden Quellen
+zusammen, 477 davon aus den Kursabschnitten. Auf der Karte steht bei solchen Wörtern
+oben rechts ein Chip *N5* oder *N4*.
+
+Ein Lernstand aus früheren Fassungen bleibt vollständig erhalten: die Kennungen der
+bisherigen Wörter haben sich nicht geändert.
+
+**Kanji** stehen bei den JLPT-Wörtern, soweit die Liste eine Schreibung kennt (Wörter in
+Katakana oder Kana haben keine), und bei 369 Kurswörtern, die sie vorher nicht hatten. Sie erscheinen unter dem Kana auf der Rückseite (abschaltbar unter *Einstellungen
+→ Kanji zeigen*), in der Wortliste und als Vorderseite der Richtung **漢字 → かな**.
+Die Suche findet Wörter auch über Kanji und die englische Bedeutung.
+
+**Zählen.** Bei über tausend Wörtern wäre „fällig" nutzlos, wenn jedes nie gesehene Wort
+mitzählt. Die Kopfzeile trennt deshalb: *3 fällig · 1.700 neu* heißt drei Wiederholungen
+sind dran, 1.700 Wörter hat noch keine Karte gesehen. Ein Durchgang nimmt erst die
+Wiederholungen und füllt mit Neuem auf, bis das Tageslimit erreicht ist.
+
+### Woher die Wörter kommen
+
+Die Auswahl der Wörter stammt aus den JLPT-Vokabellisten von Jonathan Waller
+([tanos.co.uk/jlpt](https://www.tanos.co.uk/jlpt/)), Lizenz
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/), bezogen über
+[open-anki-jlpt-decks](https://github.com/jamsinclair/open-anki-jlpt-decks). Aus der
+Liste stammen Wort, Kanji und englische Bedeutung. Die deutschen Bedeutungen, die
+Verben in ます-Form mit ihrer Gruppe, die Rōmaji und die Einteilung in Abschnitte sind
+eigene Arbeit und nicht von einem Muttersprachler gegengelesen.
+
+Die Prüfung selbst veröffentlicht seit 2010 keine Wortlisten mehr. Die Stufen folgen
+deshalb dieser inoffiziellen Liste und decken sich nicht in jedem Einzelfall mit dem,
+was in einer Prüfung vorkommt.
+
 ## Wiederholungsplan
 
 Sechs Stufen. Nach einer richtigen Antwort ist das Wort wieder fällig nach
@@ -104,7 +146,8 @@ und **Eingefügten Stand laden** tippen.
 
 ## Wörter ergänzen
 
-Alle Wörter stehen in `vokabeln.js`. Eine Zeile hat die Form
+Die Wörter der Topics stehen in `vokabeln.js`, die der JLPT-Stufen in
+`vokabeln-jlpt.js` (dieselbe Zeilenform, geladen vor `vokabeln.js`). Eine Zeile hat die Form
 
 ```js
 ["3-2","いずみ","izumi","Quelle","N"],
@@ -122,9 +165,20 @@ fehlen, solange kein späteres folgt:
 | 7 | Englisch | die englische Bedeutung, wo die Quelle sie mitliefert |
 | 8 | Kanji | die Schreibung in Kanji, wo es eine gibt |
 
-Englisch und Kanji werden bisher nur gespeichert, nicht angezeigt. Wer eine
-spätere Stelle füllen will, ohne eine frühere zu kennen, schreibt dort `0`
-beziehungsweise `""`.
+Kanji werden angezeigt (Rückseite, Liste, Richtung 漢字 → かな) und durchsucht,
+Englisch wird nur durchsucht. Bei Verben steht die Kanji-Schreibung wie das Kana in
+ます-Form, bei な-Adjektiven mit `（な）`. Wer eine spätere Stelle füllen will, ohne eine
+frühere zu kennen, schreibt dort `0` beziehungsweise `""`.
+
+Zwei Wörter mit gleicher Lesung im selben Abschnitt bekommen automatisch
+verschiedene Kennungen (das zweite trägt seine Kanji oder Bedeutung angehängt). Nur
+die Kennung ist der Schlüssel des Lernstands; ein Wort umbenennen heißt, es neu zu
+beginnen.
+
+Am Ende von `vokabeln-jlpt.js` stehen drei Tabellen für Wörter aus den Topics, die auf
+der Liste stehen: `STUFEN_ZUORDNUNG` (Kennung → 5 oder 4), `STUFEN_KANJI` und
+`STUFEN_ENGLISCH` (Schreibung und englische Bedeutung, wo die Zeile selbst sie nicht
+hat).
 
 Rōmaji werden mit verdoppelten langen Vokalen geschrieben (`sensee`, `tanjoobi`),
 nicht mit Makron. Kommt ein Wort in mehreren Abschnitten vor, bleibt es dort,
@@ -206,7 +260,8 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `index.html` | Aufbau der Seite |
 | `app.css` | Gestaltung „Papier", hell und dunkel |
 | `app.js` | Karteikarten, Wiederholungsplan, Speicherung |
-| `vokabeln.js` | die Wörter und die Abschnitte |
+| `vokabeln.js` | die Wörter und die Abschnitte der Topics |
+| `vokabeln-jlpt.js` | der Wortschatz der Stufen N5 und N4 |
 | `bilder.js` | Bildwörter mit Beispielsätzen |
 | `bilder.svg` | die Bilder selbst, erzeugt aus Twemoji |
 | `dojo.js` | das Dojo: Quiz, Paare, Zahlen und Zeit, Lesetexte |

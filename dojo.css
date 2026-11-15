@@ -32,6 +32,10 @@
 .seite.mitbild .strich{margin:11px 0;}
 @media (max-height: 700px){
   .kartenbild{width:48px;height:48px;margin-bottom:5px;}
+  /* Bild, Kana, Kanji, Rōmaji und Bedeutung sollen auch auf dem kleinen iPhone
+     ohne Überlauf auf die Karte passen. */
+  .seite{padding-top:40px;padding-bottom:32px;}
+  .seite .strich{margin:11px 0;}
 }
 
 /* ---------- 2. Übersicht ---------- */

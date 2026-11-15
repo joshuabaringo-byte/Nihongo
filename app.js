@@ -74,6 +74,9 @@ if(einst.limit    === undefined) einst.limit    = 40;
 if(einst.richtung === undefined) einst.richtung = "kana";
 if(einst.filter   === undefined) einst.filter   = { art: "alle", wert: 0 };
 if(einst.bilder   === undefined) einst.bilder   = true;
+if(einst.kanji    === undefined) einst.kanji    = true;
+if(einst.listeStufe === undefined) einst.listeStufe = 0;
+if(["kana", "de", "kanji"].indexOf(einst.richtung) < 0) einst.richtung = "kana";
 
 function standSichern(){ lege(K_STAND, stand); }
 function einstSichern(){ lege(K_EINST, einst); }
@@ -110,9 +113,22 @@ function istFaellig(v){
 }
 function istProblem(v){ return karte(v.id).fehler >= 2; }
 
+/* Bei über tausend Wörtern sagt "fällig" nichts mehr, wenn jedes nie gesehene
+   Wort mitzählt. Deshalb getrennt: Wiederholung = schon gelernt und jetzt
+   dran, neu = noch nie gesehen. Der Durchgang nimmt beides (erst die
+   Wiederholungen, dann Neues), nur das Zählen unterscheidet. */
+function istNeu(v){ return karte(v.id).stufe === 0; }
+function istWiederholung(v){ var k = karte(v.id); return k.stufe > 0 && k.faellig <= Date.now(); }
+function zaehle(liste){
+  var f = 0, n = 0;
+  liste.forEach(function(v){ if(istNeu(v)) n++; else if(istWiederholung(v)) f++; });
+  return { faellig: f, neu: n };
+}
+
 /* ---------- Auswahl über den Filter ---------- */
 function auswahl(f){
   f = f || einst.filter;
+  if(f.art === "stufe")   return V.filter(function(v){ return v.n === f.wert; });
   if(f.art === "topic")   return V.filter(function(v){ return v.t === f.wert; });
   if(f.art === "ab")      return V.filter(function(v){ return v.ab === f.wert; });
   if(f.art === "problem") return V.filter(istProblem);
@@ -127,6 +143,7 @@ function filterName(f, lang){
     return lang ? kurz + " · " + a.titel : kurz;
   }
   if(f.art === "problem") return "Problemwörter";
+  if(f.art === "stufe")   return "Alle N" + f.wert + "-Wörter";
   return "Alle Wörter";
 }
 function gleicherFilter(a, b){ return a.art === b.art && String(a.wert) === String(b.wert); }
@@ -243,10 +260,12 @@ function zeige(name){
 
 /* ---------- Kopfzeile ---------- */
 function kopfAktualisieren(){
-  var offen = faelligeAus(V).length;   // immer der Gesamtstand, unabhängig vom Filter
+  var c = zaehle(V);                    // immer der Gesamtstand, unabhängig vom Filter
   var z = $("#zaehler");
-  $("#zaehlerText").textContent = offen > 0 ? offen + " fällig" : "alles fertig";
-  z.classList.toggle("fertig", offen === 0);
+  var text = c.faellig > 0 ? c.faellig + " fällig" : (c.neu > 0 ? "keine fällig" : "alles fertig");
+  if(c.neu > 0) text += " · " + c.neu + " neu";
+  $("#zaehlerText").textContent = text;
+  z.classList.toggle("fertig", c.faellig === 0);
 
   var problemZahl = V.filter(istProblem).length;
   var kringel = $("#problemKringel");
@@ -258,6 +277,9 @@ function kopfAktualisieren(){
 function filterListe(){
   var f = [{ art: "alle", wert: 0 }];
   if(V.filter(istProblem).length) f.push({ art: "problem", wert: 0 });
+  [5, 4].forEach(function(n){
+    if(V.some(function(v){ return v.n === n; })) f.push({ art: "stufe", wert: n });
+  });
   TOPICS.forEach(function(t){ f.push({ art: "topic", wert: t }); });
   Object.keys(ABSCHNITTE).forEach(function(a){ f.push({ art: "ab", wert: a }); });
   return f;
@@ -266,18 +288,20 @@ function filterListe(){
 function zeichneFilter(){
   var liste = filterListe();
 
-  var offen = faelligeAus(auswahl()).length;
+  var cf = zaehle(auswahl());
   $("#filterName").textContent = filterName(einst.filter, true);
-  $("#filterZahl").textContent = offen ? offen + " fällig" : "fertig";
+  $("#filterZahl").textContent = cf.faellig ? cf.faellig + " fällig"
+                               : cf.neu ? cf.neu + " neu" : "fertig";
 
   function zeile(i, klasse, nr, titel){
     var f = liste[i];
-    var n = faelligeAus(auswahl(f)).length;
+    var c = zaehle(auswahl(f));
+    var zahl = c.faellig ? c.faellig : (c.neu ? c.neu + " neu" : "–");
     return '<button class="fzeile' + (klasse ? " " + klasse : "") + '" data-i="' + i + '"'
       + ' aria-current="' + (gleicherFilter(f, einst.filter) ? "true" : "false") + '">'
       + (nr ? '<span class="fnr">' + esc(nr) + "</span>" : "")
       + '<span class="ftitel">' + esc(titel) + "</span>"
-      + '<span class="fzahl' + (n ? " offen" : "") + '">' + (n ? n : "–") + "</span>"
+      + '<span class="fzahl' + (c.faellig ? " offen" : "") + '">' + zahl + "</span>"
       + "</button>";
   }
 
@@ -285,6 +309,7 @@ function zeichneFilter(){
   liste.forEach(function(f, i){
     if(f.art === "alle")    h += zeile(i, "", "", "Alle Wörter");
     if(f.art === "problem") h += zeile(i, "", "", "Problemwörter");
+    if(f.art === "stufe")   h += zeile(i, "", "", filterName(f));
   });
   TOPICS.forEach(function(t){
     h += '<div class="fgruppe">' + esc(topicName(t).lang) + "</div>";
@@ -333,7 +358,12 @@ function zeichneLernen(){
   $("#sitzungBalken").style.width = (gesamt ? Math.round(getan / gesamt * 100) : 0) + "%";
 
   var marke   = topicName(v.t).kurz + " " + ABSCHNITTE[v.ab].nr + (k.stufe === 0 ? " · neu" : "");
-  var wortart = v.wa ? '<span class="wortart">' + esc(v.wa) + "</span>" : "";
+  // Die Stufe steht als Chip nur bei Kurswörtern, die auch auf der Liste stehen;
+  // bei den JLPT-Abschnitten sagt es schon die Marke links oben.
+  var stufe   = (v.n && !STUFEN_GRUPPEN[v.t]) ? '<span class="stufe">N' + v.n + "</span>" : "";
+  var wortart = (v.wa || stufe)
+    ? '<span class="chips">' + stufe + (v.wa ? '<span class="wortart">' + esc(v.wa) + "</span>" : "") + "</span>"
+    : "";
   var punkte  = stufenPunkte(k.stufe, "stufenpunkte");
 
   // Das Bild verrät die Bedeutung. Vorn steht es deshalb nur, wenn dort
@@ -342,12 +372,14 @@ function zeichneLernen(){
   var bildHtml = b ? '<div class="kartenbild">' + bildSvg(b.z) + "</div>" : "";
   var mitBild  = b ? " mitbild" : "";
 
-  var vorneText = einst.richtung === "kana"
-    ? '<div class="wort jp">' + esc(v.kana) + "</div>"
-    : bildHtml + '<div class="wort de">' + esc(v.de) + "</div>";
+  var vorneKana = (einst.richtung === "kanji" && v.kanji) ? v.kanji : v.kana;   // ohne Kanji bleibt das Kana
+  var vorneText = einst.richtung === "de"
+    ? bildHtml + '<div class="wort de">' + esc(v.de) + "</div>"
+    : '<div class="wort jp">' + esc(vorneKana) + "</div>";
 
   var hinten = bildHtml
     + '<div class="wort jp">' + esc(v.kana) + "</div>"
+    + (einst.kanji && v.kanji ? '<div class="kanjizeile jp">' + esc(v.kanji) + "</div>" : "")
     + (einst.romaji ? '<div class="lesung">' + esc(v.romaji) + "</div>" : "")
     + '<div class="strich"></div>'
     + '<div class="bedeutung">' + esc(v.de) + "</div>"
@@ -521,35 +553,47 @@ function zeichneStand(){
     if(k.stufe > 0)    begonnen++;
     if(k.stufe >= FEST) gefestigt++;
   });
-  var offen = faelligeAus(V).length;
+  var offen = V.filter(istWiederholung).length;   // Wiederholungen; Neues zählt hier nicht
 
   $("#kacheln").innerHTML =
       '<div class="kachel n"><b>' + begonnen  + "</b><span>begonnen</span></div>"
     + '<div class="kachel g"><b>' + gefestigt + "</b><span>gefestigt</span></div>"
     + '<div class="kachel a"><b>' + offen     + "</b><span>fällig</span></div>";
 
+  /* Eine Zeile mit Balken. attr sagt, was ein Tipp darauf übt. */
+  function reihe(attr, titel, w){
+    var fest = 0, lernt = 0;
+    w.forEach(function(v){
+      var s = karte(v.id).stufe;
+      if(s >= FEST) fest++; else if(s > 0) lernt++;
+    });
+    var pF = w.length ? Math.round(fest  / w.length * 100) : 0;
+    var pL = w.length ? Math.round(lernt / w.length * 100) : 0;
+    return '<button class="reihe" ' + attr + ">"
+      + '<span class="kopfzeile"><span class="titel">' + titel + "</span>"
+      +   '<span class="zahl">' + fest + " / " + w.length + "</span></span>"
+      + '<span class="balken"><i class="fest" style="width:' + pF + '%"></i>'
+      +   '<i class="lernt" style="width:' + pL + '%"></i></span>'
+      + '<span class="fuss">' + (w.length - fest - lernt) + " noch nie gesehen · "
+      +   w.filter(istWiederholung).length + " fällig</span>"
+      + "</button>";
+  }
+
   var html = "";
+  var stufen = [5, 4].filter(function(n){ return V.some(function(v){ return v.n === n; }); });
+  if(stufen.length){
+    html += "<h3>JLPT</h3>";
+    stufen.forEach(function(n){
+      html += reihe('data-stufe="' + n + '"', "Alle N" + n + "-Wörter",
+                    V.filter(function(v){ return v.n === n; }));
+    });
+  }
   TOPICS.forEach(function(t){
     html += "<h3>" + esc(topicName(t).lang) + "</h3>";
     Object.keys(ABSCHNITTE).filter(function(a){ return ABSCHNITTE[a].t === t; }).forEach(function(a){
-      var w = V.filter(function(v){ return v.ab === a; });
-      var fest = 0, lernt = 0;
-      w.forEach(function(v){
-        var s = karte(v.id).stufe;
-        if(s >= FEST) fest++; else if(s > 0) lernt++;
-      });
-      var pF = w.length ? Math.round(fest  / w.length * 100) : 0;
-      var pL = w.length ? Math.round(lernt / w.length * 100) : 0;
-      html +=
-          '<button class="reihe" data-ab="' + a + '">'
-        +   '<span class="kopfzeile"><span class="titel"><em>' + ABSCHNITTE[a].nr + "</em>"
-        +     esc(ABSCHNITTE[a].titel) + "</span>"
-        +     '<span class="zahl">' + fest + " / " + w.length + "</span></span>"
-        +   '<span class="balken"><i class="fest" style="width:' + pF + '%"></i>'
-        +     '<i class="lernt" style="width:' + pL + '%"></i></span>'
-        +   '<span class="fuss">' + (w.length - fest - lernt) + " noch nie gesehen · "
-        +     faelligeAus(w).length + " fällig</span>"
-        + "</button>";
+      html += reihe('data-ab="' + a + '"',
+                    "<em>" + ABSCHNITTE[a].nr + "</em>" + esc(ABSCHNITTE[a].titel),
+                    V.filter(function(v){ return v.ab === a; }));
     });
   });
   $("#standListe").innerHTML = html;
@@ -562,11 +606,13 @@ function wortZeile(v, mitFehler){
   return '<button class="wortzeile" data-kana="' + esc(v.kana) + '">'
     + '<span class="links">'
     +   '<span class="kana jp">' + esc(v.kana) + "</span> "
+    +   (v.kanji ? '<span class="kanjiw jp">' + esc(v.kanji) + "</span> " : "")
     +   '<span class="romaji">' + esc(v.romaji) + "</span>"
     +   '<span class="de">' + esc(v.de) + "</span>"
     + "</span>"
     + '<span class="rechts">'
     +   (mitFehler && k.fehler ? '<span class="fehlerzahl">' + k.fehler + "×</span>" : "")
+    +   (v.n ? '<span class="stufe">N' + v.n + "</span>" : "")
     +   stufenPunkte(k.stufe, "mini")
     + "</span></button>";
 }
@@ -592,12 +638,16 @@ function zeichneProblem(){
 
 function zeichneListe(){
   var q = $("#sucheFeld").value.trim().toLowerCase();
-  var treffer = V;
+  var stufe = einst.listeStufe;
+  var basis = stufe ? V.filter(function(v){ return v.n === stufe; }) : V;
+  var treffer = basis;
   if(q){
-    treffer = V.filter(function(v){
+    treffer = basis.filter(function(v){
       return v.kana.indexOf(q) >= 0
         || v.romaji.toLowerCase().indexOf(q) >= 0
-        || v.de.toLowerCase().indexOf(q) >= 0;
+        || v.de.toLowerCase().indexOf(q) >= 0
+        || (v.kanji && v.kanji.indexOf(q) >= 0)
+        || (v.en && v.en.toLowerCase().indexOf(q) >= 0);
     });
   }
   if(!treffer.length){
@@ -611,11 +661,13 @@ function zeichneListe(){
   }
   var html = "";
   TOPICS.forEach(function(t){
-    html += "<h3>" + esc(topicName(t).lang) + "</h3>";
+    var teil = "";
     Object.keys(ABSCHNITTE).filter(function(a){ return ABSCHNITTE[a].t === t; }).forEach(function(a){
-      html += "<h2>" + ABSCHNITTE[a].nr + " " + esc(ABSCHNITTE[a].titel) + "</h2>"
-        + wortListe(V.filter(function(v){ return v.ab === a; }), false);
+      var w = basis.filter(function(v){ return v.ab === a; });
+      if(!w.length) return;                       // Stufenfilter: leere Abschnitte weglassen
+      teil += "<h2>" + ABSCHNITTE[a].nr + " " + esc(ABSCHNITTE[a].titel) + "</h2>" + wortListe(w, false);
     });
+    if(teil) html += "<h3>" + esc(topicName(t).lang) + "</h3>" + teil;
   });
   $("#vollListe").innerHTML = html;
 }
@@ -774,6 +826,18 @@ function schalter(id, feld, danach){
   });
 }
 
+function richtungAnzeigen(){
+  ["kana", "de", "kanji"].forEach(function(r){
+    var b = $("#rtg" + r.charAt(0).toUpperCase() + r.slice(1));
+    if(b) b.setAttribute("aria-pressed", einst.richtung === r ? "true" : "false");
+  });
+}
+function listeStufeAnzeigen(){
+  $$("#listeStufe button").forEach(function(b){
+    b.setAttribute("aria-pressed", +b.dataset.stufe === einst.listeStufe ? "true" : "false");
+  });
+}
+
 var LIMITS = [20, 40, 60, 100, 0];
 function limitAnzeigen(){
   $("#limitKnopf").textContent = einst.limit === 0 ? "alle" : einst.limit;
@@ -847,8 +911,7 @@ function verdrahten(){
     b.addEventListener("click", function(){
       einst.richtung = b.dataset.rtg;
       einstSichern();
-      $("#rtgKana").setAttribute("aria-pressed", einst.richtung === "kana" ? "true" : "false");
-      $("#rtgDe").setAttribute("aria-pressed",   einst.richtung === "de"   ? "true" : "false");
+      richtungAnzeigen();
       umgedreht = false;
       zeichneLernen();
     });
@@ -865,8 +928,18 @@ function verdrahten(){
   $("#standListe").addEventListener("click", function(e){
     var r = e.target.closest(".reihe");
     if(!r) return;
-    setzeFilter({ art: "ab", wert: r.dataset.ab });
+    if(r.dataset.stufe) setzeFilter({ art: "stufe", wert: +r.dataset.stufe });
+    else                setzeFilter({ art: "ab", wert: r.dataset.ab });
     zeige("lernen");
+  });
+
+  $$("#listeStufe button").forEach(function(b){
+    b.addEventListener("click", function(){
+      einst.listeStufe = +b.dataset.stufe;
+      einstSichern();
+      listeStufeAnzeigen();
+      zeichneListe();
+    });
   });
 
   ["#problemListe", "#vollListe"].forEach(function(sel){
@@ -901,6 +974,7 @@ function verdrahten(){
 
   schalter("#schalterRomaji",  "romaji",  function(){ zeichneLernen(); });
   schalter("#schalterBilder",  "bilder",  function(){ zeichneLernen(); });
+  schalter("#schalterKanji",   "kanji",   function(){ zeichneLernen(); });
   schalter("#schalterTon",     "ton");
   schalter("#schalterMischen", "mischen", function(){ schlangeBauen(false); zeichneLernen(); });
 
@@ -983,8 +1057,8 @@ function start(){
   $("#ueberZahl").textContent    = V.length;
   $("#topicSpanne").textContent  = spanne;
   $("#ueberSpanne").textContent  = spanne;
-  $("#rtgKana").setAttribute("aria-pressed", einst.richtung === "kana" ? "true" : "false");
-  $("#rtgDe").setAttribute("aria-pressed",   einst.richtung === "de"   ? "true" : "false");
+  richtungAnzeigen();
+  listeStufeAnzeigen();
 
   // gespeicherter Filter kann auf einen leeren Problemfilter zeigen
   if(einst.filter.art === "problem" && !V.filter(istProblem).length){
