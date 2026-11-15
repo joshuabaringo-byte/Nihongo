@@ -117,7 +117,8 @@
   <section id="problem" hidden aria-label="Problemwörter">
     <h3>Problemwörter</h3>
     <div class="info nichtdrucken">
-      Wörter, die du mindestens zweimal auf <b>nochmal</b> gesetzt hast, sortiert nach Häufigkeit.
+      Wörter, die du nach dem Lernen mindestens zweimal vergessen hast (<b>nochmal</b>) und noch nicht
+      sicher kennst, sortiert nach Häufigkeit. Wer ein Wort wieder sicher kann, fällt von allein aus der Liste.
     </div>
     <button class="knopf nichtdrucken" id="druckKnopf">Blatt zum Ausdrucken</button>
     <div id="problemListe"></div>
@@ -259,10 +260,17 @@
     </div>
     <div class="opt">
       <span class="beschriftung">
-        <b>Tageslimit</b>
+        <b>Karten pro Durchgang</b>
         <span id="limitText">Höchstens 40 Karten pro Durchgang</span>
       </span>
       <button class="knopf" id="limitKnopf" style="width:auto;margin:0;padding:9px 14px">40</button>
+    </div>
+    <div class="opt">
+      <span class="beschriftung">
+        <b>Neue Wörter pro Tag</b>
+        <span id="neuText">Höchstens 15 neue Wörter pro Tag</span>
+      </span>
+      <button class="knopf" id="neuKnopf" style="width:auto;margin:0;padding:9px 14px">15</button>
     </div>
 
     <h3>Lernstand sichern</h3>
@@ -279,7 +287,8 @@
     <h3>Über</h3>
     <p style="font-size:.8rem;color:var(--grau);line-height:1.6;padding-bottom:8px">
       <span id="ueberZahl"></span> Wörter aus <span id="ueberSpanne"></span>.
-      Wiederholung nach 1, 2, 4, 8, 17 und 35 Tagen.
+      Wiederholt wird nach dem Vorbild von Anki: Neue Wörter lernen in Minutenschritten,
+      dann wachsen die Abstände mit jeder richtigen Antwort, schwere Wörter kommen früher.
       Zum Installieren in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b> tippen.
     </p>
     <p style="font-size:.8rem;color:var(--grau);line-height:1.6;padding-bottom:8px">
@@ -296,6 +305,7 @@
 <script src="vokabeln.js"></script>
 <script src="bilder.js"></script>
 <script src="dojo-daten.js"></script>
+<script src="plan.js"></script>
 <script src="app.js"></script>
 <script src="dojo.js"></script>
 </body>

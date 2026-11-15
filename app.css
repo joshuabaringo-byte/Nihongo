@@ -445,7 +445,7 @@ h3:first-child{margin-top:2px;}
 .tonknopf.laeuft{color:var(--akzent);background:var(--bg-2);}
 
 /* Bewertungsknöpfe */
-.knoepfe{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.knoepfe{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
 .tap{
   border-radius:var(--r-m);
   padding:16px 6px 14px;
@@ -453,13 +453,14 @@ h3:first-child{margin-top:2px;}
   display:flex;flex-direction:column;align-items:center;gap:2px;
   transition:transform .16s cubic-bezier(.22,.85,.3,1), filter .15s;
 }
-.tap .gross{font-size:.98rem;line-height:1.2;}
+.tap .gross{font-size:.9rem;line-height:1.2;}
 .tap .klein{font-size:.66rem;font-weight:600;opacity:.82;font-variant-numeric:tabular-nums;}
 .tap:active{transform:scale(.96);filter:brightness(.96);}
 /* Neun von zehn Antworten sind "sitzt". Nur die traegt Farbe, damit der
    Blick dorthin faellt und der Bildschirm ruhig bleibt. */
 .tap.nochmal{background:var(--rot-weich);color:var(--rot);}
 .tap.gut{background:var(--gruen);color:var(--auf-gruen);}
+.tap.schwer{background:var(--bg-2);color:var(--text-2);}
 .tap.leicht{background:var(--bg-2);color:var(--text-2);}
 
 .umdrehknopf{
@@ -481,6 +482,15 @@ h3:first-child{margin-top:2px;}
 .sitzung .spur i{
   display:block;height:100%;border-radius:3px;
   background:var(--gruen);transition:width .35s cubic-bezier(.3,.9,.35,1);
+}
+
+/* display:flex oben überschreibt sonst das Ausblenden mit [hidden]: auf der Seite
+   "alles erledigt" blieb der Balken mit alten Zahlen stehen. */
+.sitzung[hidden]{display:none;}
+
+/* Drei Richtungen und vier Antworten nebeneinander: auf sehr schmalen Telefonen etwas kleiner */
+@media (max-width: 360px){
+  .segment button{font-size:.74rem;padding:9px 3px;}
 }
 
 /* ---------- 8. Fortschritt / Karten ---------- */
@@ -531,6 +541,21 @@ h3:first-child{margin-top:2px;}
 .balken i.fest{background:var(--gruen);}
 .balken i.lernt{background:var(--gruen-hell);opacity:.55;}
 .reihe .fuss{font-size:.72rem;color:var(--grau);font-variant-numeric:tabular-nums;}
+
+/* Prognose: was in den nächsten sieben Tagen fällig wird */
+.prognose{
+  display:grid;grid-template-columns:repeat(7,1fr);gap:6px;
+  background:var(--flaeche);border-radius:var(--r-m);padding:14px 12px 10px;margin-bottom:6px;
+}
+.pspalte{display:flex;flex-direction:column;align-items:center;gap:5px;min-width:0;}
+.pzahl{font-size:.74rem;font-weight:700;font-variant-numeric:tabular-nums;color:var(--text-2);}
+.pbalken{display:flex;align-items:flex-end;width:100%;height:54px;}
+.pbalken i{
+  display:block;width:100%;min-height:3px;border-radius:5px 5px 2px 2px;
+  background:var(--gruen);opacity:.75;
+}
+.pspalte:first-child .pbalken i{opacity:1;}
+.ptag{font-size:.64rem;font-weight:600;color:var(--grau);letter-spacing:.02em;}
 
 /* ---------- 9. Tabellen / Wortlisten ---------- */
 .suche{

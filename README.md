@@ -38,9 +38,10 @@ gespeichert. In Safari selbst löscht iOS ihn nach etwa sieben Tagen ohne Besuch
 | Handgriff | Wirkung |
 |---|---|
 | Auf die Karte tippen | Antwort zeigen |
-| **nochmal** | zurück auf Stufe 1, morgen wieder fällig, zählt als Fehler |
-| **sitzt** | eine Stufe weiter |
-| **leicht** | zwei Stufen weiter |
+| **nochmal** | vergessen: in 10 Minuten wieder, der Abstand schrumpft auf etwa ein Drittel, zählt als Fehler |
+| **schwer** | gewusst, aber mühsam: der Abstand wächst nur wenig, das Wort gilt künftig als schwerer |
+| **sitzt** | gewusst: der Abstand wächst um den Faktor des Wortes (anfangs 2,5) |
+| **leicht** | spielend gewusst: der Abstand wächst stärker, das Wort gilt künftig als leichter |
 | Nach links wischen | wie nochmal |
 | Nach rechts wischen | wie sitzt |
 | Auf ein Wort in den Listen tippen | Aussprache anhören |
@@ -51,7 +52,7 @@ gespeichert. In Safari selbst löscht iOS ihn nach etwa sieben Tagen ohne Besuch
 | Über der Karte **漢字 → かな** wählen | Kanji vorn, Kana und Bedeutung hinten (ohne Kanji bleibt das Kana) |
 | In der Liste **N5** oder **N4** wählen | nur Wörter dieser Stufe anzeigen |
 
-Am Rechner gehen zusätzlich Leertaste (umdrehen und sitzt) sowie die Tasten 1, 2 und 3.
+Am Rechner gehen zusätzlich Leertaste (umdrehen und sitzt) sowie die Tasten 1 bis 4 für nochmal, schwer, sitzt und leicht.
 
 ## Dojo
 
@@ -112,9 +113,9 @@ Katakana oder Kana haben keine), und bei 369 Kurswörtern, die sie vorher nicht 
 Die Suche findet Wörter auch über Kanji und die englische Bedeutung.
 
 **Zählen.** Bei über tausend Wörtern wäre „fällig" nutzlos, wenn jedes nie gesehene Wort
-mitzählt. Die Kopfzeile trennt deshalb: *3 fällig · 1.700 neu* heißt drei Wiederholungen
-sind dran, 1.700 Wörter hat noch keine Karte gesehen. Ein Durchgang nimmt erst die
-Wiederholungen und füllt mit Neuem auf, bis das Tageslimit erreicht ist.
+mitzählt. Die Kopfzeile trennt deshalb: *3 fällig · 15 neu* heißt drei Wiederholungen
+sind dran und heute sind noch 15 neue Wörter erlaubt. Ein Durchgang nimmt erst die
+Wiederholungen und füllt mit Neuem auf, soweit das Limit für neue Wörter es zulässt.
 
 ### Woher die Wörter kommen
 
@@ -132,10 +133,52 @@ was in einer Prüfung vorkommt.
 
 ## Wiederholungsplan
 
-Sechs Stufen. Nach einer richtigen Antwort ist das Wort wieder fällig nach
-1, 2, 4, 8, 17 und 35 Tagen. Ab Stufe 5 gilt es als gefestigt.
-Ein **nochmal** setzt auf Stufe 1 zurück; das Wort ist damit am nächsten Tag
-wieder fällig und taucht im laufenden Durchgang nicht noch einmal auf.
+Der Plan folgt dem Vorbild von Anki. Die Rechnung steht in `plan.js`; die Zahlen dort
+sind Stellschrauben.
+
+**Neue Wörter** lernen in Minutenschritten: nach der ersten Antwort kommt das Wort nach
+1 oder 10 Minuten wieder (im Durchgang schon nach einigen Karten), erst dann bekommt es
+einen Abstand in Tagen. Ein neues Wort, das du gleich mit **leicht** beantwortest,
+kommt erst in 4 Tagen wieder.
+
+**Gelernte Wörter** wachsen: Jedes Wort hat einen eigenen Faktor, anfangs 2,5.
+
+| Antwort | Abstand | Faktor |
+|---|---|---|
+| **nochmal** | 10 Minuten, danach etwa ein Drittel des alten Abstands (mindestens 1 Tag) | −0,20 |
+| **schwer** | alter Abstand × 1,2 | −0,15 |
+| **sitzt** | alter Abstand × Faktor | bleibt |
+| **leicht** | alter Abstand × Faktor × 1,3 | +0,15 |
+
+Wer oft **schwer** oder **nochmal** drückt, dessen Abstände wachsen langsamer, wer
+**leicht** drückt, schneller. Der Faktor bleibt zwischen 1,3 und 3,5. Ein Abstand kann
+bis zu einem Jahr wachsen. Was zu spät drankommt, bekommt einen Teil der Verspätung
+als Zuschlag. Ab drei Tagen werden die Abstände um ein paar Tage gestreut, damit Wörter,
+die am selben Tag gelernt wurden, nicht alle am selben Tag wiederkommen.
+
+**Fällig** wird zum Tageswechsel um vier Uhr früh, nicht auf die Minute: Was du heute um
+19:35 lernst und morgen dran ist, liegt morgen ab vier Uhr bereit.
+
+**Neue Wörter pro Tag** sind begrenzt (Einstellungen, Voreinstellung 15). Ohne Grenze
+lernt man an einem Tag Hunderte, und alle kommen am nächsten Tag zusammen wieder. Das
+Limit zählt ab dem Tageswechsel; mit *Trotzdem weiterüben* lässt es sich bewusst
+überschreiten.
+
+**Reihenfolge im Durchgang:** erst Lernkarten, dann Wiederholungen (das am längsten
+Überfällige zuerst, innerhalb eines Tages gemischt), dann Neues. Unter *Stand → Nächste
+7 Tage* siehst du, wie viel in den kommenden Tagen fällig wird.
+
+**Üben vor dem Termin** (*Trotzdem weiterüben*) ändert den Plan nicht, solange du das Wort
+weißt, sonst ließe sich ein Wort durch Üben weiterschieben. Vergisst du es, zählt das
+wie sonst als Fehler.
+
+**Gefestigt** heißt: der Abstand beträgt mindestens 17 Tage. Ein **Problemwort** wurde
+nach dem Lernen mindestens zweimal vergessen und ist noch nicht gefestigt; sobald du
+es wieder sicher kannst, fällt es von allein aus der Liste.
+
+Lernstände aus früheren Fassungen werden beim ersten Laden übernommen: Der Abstand der
+bisherigen Stufe (1, 2, 4, 8, 17 oder 35 Tage) und der Termin bleiben erhalten, ein
+vorgemerktes *nochmal* wird zu einem Lernschritt.
 
 ## Lernstand sichern
 
@@ -259,7 +302,8 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 |---|---|
 | `index.html` | Aufbau der Seite |
 | `app.css` | Gestaltung „Papier", hell und dunkel |
-| `app.js` | Karteikarten, Wiederholungsplan, Speicherung |
+| `app.js` | Karteikarten, Durchgänge, Speicherung |
+| `plan.js` | der Wiederholungsplan (reine Rechnung) |
 | `vokabeln.js` | die Wörter und die Abschnitte der Topics |
 | `vokabeln-jlpt.js` | der Wortschatz der Stufen N5 und N4 |
 | `bilder.js` | Bildwörter mit Beispielsätzen |

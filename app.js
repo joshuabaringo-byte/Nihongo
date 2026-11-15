@@ -6,11 +6,23 @@
 (function () {
 "use strict";
 
+/* Der Wiederholungsplan liegt in plan.js. Fehlt er, stammen index.html und
+   app.js aus verschiedenen Ständen: einmal neu laden bringt sie zusammen. */
+var PLAN = window.PLAN;
+if(!PLAN){
+  try{
+    if(!sessionStorage.getItem("kotoba-neu-geladen")){
+      sessionStorage.setItem("kotoba-neu-geladen", "plan");
+      location.reload();
+    }
+  }catch(e){ /* dann bleibt es beim Hinweis unten */ }
+  return;
+}
+
 /* ---------- Konstanten ---------- */
 var TAG      = 86400000;
-var STUFEN   = [0, 1, 2, 4, 8, 17, 35];   // Tage bis zur nächsten Abfrage
-var MAXSTUFE = STUFEN.length - 1;         // 6
-var FEST     = 5;                         // ab dieser Stufe gilt ein Wort als gefestigt
+var MAXSTUFE = 6;                         // Punkte der Anzeige
+var FEST     = 5;                         // ab dieser Stufe (Abstand ab 17 Tagen) gilt ein Wort als gefestigt
 var K_STAND  = "kotoba-v2";
 var K_EINST  = "kotoba-einst";
 /* Frueher benutzte Namen, neueste zuerst. Sie werden einmalig uebernommen,
@@ -76,6 +88,7 @@ if(einst.filter   === undefined) einst.filter   = { art: "alle", wert: 0 };
 if(einst.bilder   === undefined) einst.bilder   = true;
 if(einst.kanji    === undefined) einst.kanji    = true;
 if(einst.listeStufe === undefined) einst.listeStufe = 0;
+if(einst.neuProTag  === undefined) einst.neuProTag  = 15;
 if(["kana", "de", "kanji"].indexOf(einst.richtung) < 0) einst.richtung = "kana";
 
 function standSichern(){ lege(K_STAND, stand); }
@@ -87,15 +100,11 @@ function einstSichern(){ lege(K_EINST, einst); }
    So bleibt die Sicherungskopie klein genug zum Kopieren.            */
 var VORGABE = { stufe: 0, faellig: 0, fehler: 0 };
 
+/* Nimmt auch Stände aus früheren Fassungen (nur stufe, faellig, fehler) und
+   ergänzt Abstand und Faktor; Einzelheiten in plan.js. */
 function normalisiere(d){
   Object.keys(d).forEach(function(id){
-    var k = d[id];
-    if(!k || typeof k !== "object"){ delete d[id]; return; }
-    if(typeof k.stufe   !== "number" || k.stufe < 0)  k.stufe   = 0;
-    if(typeof k.faellig !== "number")                 k.faellig = 0;
-    if(typeof k.fehler  !== "number" || k.fehler < 0) k.fehler  = 0;
-    if(k.stufe > MAXSTUFE) k.stufe = MAXSTUFE;
-    if(k.stufe === 0 && k.fehler === 0) delete d[id];   // sagt nichts aus
+    if(!PLAN.normalisieren(d[id])) delete d[id];
   });
   return d;
 }
@@ -107,22 +116,31 @@ function karteSchreiben(id){
   if(!k) k = stand[id] = { stufe: 0, faellig: 0, fehler: 0 };
   return k;
 }
-function istFaellig(v){
-  var k = karte(v.id);
-  return k.stufe === 0 || k.faellig <= Date.now();
-}
-function istProblem(v){ return karte(v.id).fehler >= 2; }
+/* Ein Problemwort wurde mindestens zweimal vergessen und sitzt noch nicht.
+   Wer es wieder sicher kann, fällt von allein aus der Liste. */
+function istProblem(v){ var k = karte(v.id); return k.fehler >= 2 && k.stufe < FEST; }
 
 /* Bei über tausend Wörtern sagt "fällig" nichts mehr, wenn jedes nie gesehene
    Wort mitzählt. Deshalb getrennt: Wiederholung = schon gelernt und jetzt
    dran, neu = noch nie gesehen. Der Durchgang nimmt beides (erst die
    Wiederholungen, dann Neues), nur das Zählen unterscheidet. */
-function istNeu(v){ return karte(v.id).stufe === 0; }
-function istWiederholung(v){ var k = karte(v.id); return k.stufe > 0 && k.faellig <= Date.now(); }
+function istNeu(v){ return PLAN.istNeu(karte(v.id)); }
+function istWiederholung(v){ return PLAN.istDran(karte(v.id), Date.now()); }
 function zaehle(liste){
   var f = 0, n = 0;
   liste.forEach(function(v){ if(istNeu(v)) n++; else if(istWiederholung(v)) f++; });
   return { faellig: f, neu: n };
+}
+
+/* Neue Wörter pro Tag: ohne Grenze lernt man an einem Tag Hunderte, und alle
+   kommen am selben Tag wieder. Gezählt wird ab dem Tageswechsel um vier Uhr. */
+function neuHeute(){
+  var t = PLAN.tagesbeginn(Date.now());
+  if(!einst.neuHeute || einst.neuHeute.tag !== t) einst.neuHeute = { tag: t, n: 0 };
+  return einst.neuHeute.n;
+}
+function neuFrei(){
+  return einst.neuProTag > 0 ? Math.max(0, einst.neuProTag - neuHeute()) : Infinity;
 }
 
 /* ---------- Auswahl über den Filter ---------- */
@@ -134,7 +152,6 @@ function auswahl(f){
   if(f.art === "problem") return V.filter(istProblem);
   return V;
 }
-function faelligeAus(liste){ return liste.filter(istFaellig); }
 
 function filterName(f, lang){
   if(f.art === "topic")   return "Alles aus " + topicName(f.wert).lang;
@@ -165,15 +182,33 @@ function mische(a){
 function schlangeBauen(alleTrotzdem){
   freiesUeben = !!alleTrotzdem;
   var basis = auswahl();
-  var liste = alleTrotzdem ? basis.slice() : faelligeAus(basis);
+  var jetzt = Date.now();
+  var liste;
 
-  if(einst.mischen) mische(liste);
-  else liste.sort(function(a, b){ return karte(a.id).faellig - karte(b.id).faellig; });
+  if(alleTrotzdem){
+    // Freies Üben: die ganze Auswahl, Gelerntes vor Neuem.
+    liste = basis.slice();
+    if(einst.mischen) mische(liste);
+    else liste.sort(function(a, b){ return karte(a.id).faellig - karte(b.id).faellig; });
+    liste.sort(function(a, b){ return (istNeu(a) ? 1 : 0) - (istNeu(b) ? 1 : 0); });
+  }else{
+    // Erst, was dran ist: Lernkarten, dann Wiederholungen, die am längsten
+    // Überfälligen zuerst, innerhalb eines Tages gemischt.
+    var wieder = basis.filter(function(v){ return PLAN.istBald(karte(v.id), jetzt); });
+    if(einst.mischen) mische(wieder);
+    var tag = {};
+    wieder.forEach(function(v){
+      var k = karte(v.id);
+      tag[v.id] = (k.lern !== undefined ? 0 : 1) * 1e15 + PLAN.tagesbeginn(k.faellig);
+    });
+    wieder.sort(function(a, b){ return tag[a.id] - tag[b.id]; });
 
-  // Wiederholungen zuerst, neue Wörter danach - sonst verdrängt der Nachschub
-  // an Unbekanntem die Wörter, die gerade festgehalten werden wollen.
-  if(einst.mischen){
-    liste.sort(function(a, b){ return (karte(a.id).stufe === 0) - (karte(b.id).stufe === 0); });
+    // Dann Neues, aber nur so viel, wie das Limit für heute noch erlaubt.
+    var neue = basis.filter(istNeu);
+    if(einst.mischen) mische(neue);
+    var frei = neuFrei();
+    if(neue.length > frei) neue = neue.slice(0, frei);
+    liste = wieder.concat(neue);
   }
 
   if(einst.limit > 0) liste = liste.slice(0, einst.limit);
@@ -261,9 +296,10 @@ function zeige(name){
 /* ---------- Kopfzeile ---------- */
 function kopfAktualisieren(){
   var c = zaehle(V);                    // immer der Gesamtstand, unabhängig vom Filter
+  var neuDa = Math.min(c.neu, neuFrei());   // neu: was das Limit für heute noch zulässt
   var z = $("#zaehler");
-  var text = c.faellig > 0 ? c.faellig + " fällig" : (c.neu > 0 ? "keine fällig" : "alles fertig");
-  if(c.neu > 0) text += " · " + c.neu + " neu";
+  var text = c.faellig > 0 ? c.faellig + " fällig" : (neuDa > 0 ? "keine fällig" : "alles fertig");
+  if(neuDa > 0) text += " · " + neuDa + " neu";
   $("#zaehlerText").textContent = text;
   z.classList.toggle("fertig", c.faellig === 0);
 
@@ -289,9 +325,10 @@ function zeichneFilter(){
   var liste = filterListe();
 
   var cf = zaehle(auswahl());
+  var cfNeu = Math.min(cf.neu, neuFrei());
   $("#filterName").textContent = filterName(einst.filter, true);
   $("#filterZahl").textContent = cf.faellig ? cf.faellig + " fällig"
-                               : cf.neu ? cf.neu + " neu" : "fertig";
+                               : cfNeu ? cfNeu + " neu" : "fertig";
 
   function zeile(i, klasse, nr, titel){
     var f = liste[i];
@@ -435,13 +472,18 @@ function zeichneSteuerung(){
     return;
   }
   var k = karte(schlange[0].id);
-  var sGut    = Math.min(k.stufe + 1, MAXSTUFE);
-  var sLeicht = Math.min(k.stufe + 2, MAXSTUFE);
+  var vs = PLAN.vorschau(k, Date.now());
+  var frueh = istFrueh(k);
+  function knopf(note, name){
+    // Zu früh geübt und gewusst ändert den Plan nicht.
+    var text = (frueh && note !== "nochmal") ? "unverändert" : PLAN.dauer(vs[note]);
+    return '<button class="tap ' + note + '" data-note="' + note + '">'
+      + '<span class="gross">' + name + '</span><span class="klein">' + text + "</span></button>";
+  }
   ziel.innerHTML =
       '<div class="knoepfe">'
-    + '<button class="tap nochmal" data-note="nochmal"><span class="gross">nochmal</span><span class="klein">gleich</span></button>'
-    + '<button class="tap gut" data-note="gut"><span class="gross">sitzt</span><span class="klein">' + tage(STUFEN[sGut]) + "</span></button>"
-    + '<button class="tap leicht" data-note="leicht"><span class="gross">leicht</span><span class="klein">' + tage(STUFEN[sLeicht]) + "</span></button>"
+    + knopf("nochmal", "nochmal") + knopf("schwer", "schwer")
+    + knopf("gut", "sitzt") + knopf("leicht", "leicht")
     + "</div>";
   $$("#steuerung .tap").forEach(function(b){
     b.addEventListener("click", function(){ bewerte(b.dataset.note); });
@@ -463,32 +505,44 @@ function umdrehen(){
   if(einst.ton) sprich(schlange[0].kana, tk);
 }
 
-/* Ein Wort, das "nochmal" bekommt, wandert nicht ans Ende, sondern ein paar
-   Karten weiter nach hinten - weit genug, dass die Antwort nicht mehr vor
-   Augen steht, nah genug, um in derselben Runde wiederzukommen. Bleibt nur
-   noch dieses eine Wort in der Schlange, kommt es sofort wieder; etwas
-   anderes gibt es dann nicht zu zeigen. */
-var ABSTAND = 4;
+/* Ein Wort, das noch in Minutenschritten lernt (1 oder 10 Minuten), wandert
+   nicht ans Ende, sondern ein paar Karten weiter nach hinten - weit genug,
+   dass die Antwort nicht mehr vor Augen steht, nah genug, um in derselben
+   Runde wiederzukommen. Bleibt nur noch dieses eine Wort in der Schlange,
+   kommt es sofort wieder; etwas anderes gibt es dann nicht zu zeigen. */
+function nachruecken(v, minuten){
+  var abstand = minuten <= 1 ? 3 : (minuten <= 6 ? 6 : 9);
+  schlange.splice(Math.min(abstand, schlange.length), 0, v);
+}
 
-function nachruecken(v){
-  schlange.splice(Math.min(ABSTAND, schlange.length), 0, v);
+/* Geübt vor dem Termin: ein Fehler zählt, ein gewusstes Wort ändert den
+   Plan nicht (sonst ließe sich ein Wort durch Üben "weiterschieben"). */
+function istFrueh(k){
+  return !PLAN.istNeu(k) && k.lern === undefined && k.faellig > Date.now();
+}
+
+function uebernehmen(k, n){
+  ["stufe", "faellig", "fehler", "ivl", "faktor"].forEach(function(f){ k[f] = n[f]; });
+  if(n.lern === undefined) delete k.lern; else k.lern = n.lern;
 }
 
 function bewerte(note){
   if(!schlange.length || !umgedreht) return;
-  var v = schlange[0], k = karteSchreiben(v.id);
+  var v = schlange[0], vorher = karte(v.id);
+  var warNeu = PLAN.istNeu(vorher);
+  var frueh = istFrueh(vorher);
+  var minuten = 0;
 
   schlange.shift();
-  if(note === "nochmal"){
-    k.fehler += 1;
-    k.stufe   = 1;
-    k.faellig = 0;              // bleibt fällig, auch wenn die Runde vorher endet
-    nachruecken(v);             // und kommt in dieser Runde noch einmal dran
-  }else{
-    k.stufe   = Math.min(k.stufe + (note === "leicht" ? 2 : 1), MAXSTUFE);
-    k.faellig = Date.now() + STUFEN[k.stufe] * TAG;
-    getan += 1;
+  if(!(frueh && note !== "nochmal")){
+    var k = karteSchreiben(v.id);
+    var s = PLAN.schritt(k, note, Date.now());
+    uebernehmen(k, s.k);
+    minuten = s.minuten;
+    if(warNeu){ neuHeute(); einst.neuHeute.n += 1; einstSichern(); }
   }
+  if(minuten > 0) nachruecken(v, minuten);     // lernt noch: kommt in dieser Runde wieder
+  else getan += 1;
 
   standSichern();
   kopfAktualisieren();
@@ -506,9 +560,13 @@ function leerAnsicht(){
   var termine = basis.map(function(v){ return karte(v.id).faellig; })
                      .filter(function(f){ return f > 0; });
   var wann = "";
-  if(termine.length === basis.length){
-    var d = Math.max(1, Math.ceil((Math.min.apply(null, termine) - Date.now()) / TAG));
-    wann = "Weiter geht es in " + tage(d) + ".";
+  if(basis.some(istNeu) && neuFrei() === 0){
+    wann = "Das Limit für neue Wörter ist für heute erreicht (" + einst.neuProTag + "). "
+         + "Morgen geht es mit den nächsten weiter.";
+  }else if(termine.length === basis.length){
+    var warte = Math.min.apply(null, termine) - Date.now();
+    if(warte < 3600000) wann = "Weiter geht es in " + Math.max(1, Math.ceil(warte / 60000)) + " Min.";
+    else wann = "Weiter geht es in " + tage(Math.max(1, Math.ceil(warte / TAG))) + ".";
   }else{
     wann = "Alles für heute abgearbeitet.";
   }
@@ -546,6 +604,32 @@ function karteGesten(){
 }
 
 /* ---------- Fortschritt ---------- */
+/* Was in den nächsten sieben Tagen fällig wird. So sieht man eine Lawine, bevor
+   sie kommt. "heute" enthält auch alles Überfällige. */
+function prognoseHtml(){
+  var b0 = PLAN.tagesbeginn(Date.now());
+  var tage7 = [0, 0, 0, 0, 0, 0, 0], gelernt = 0;
+  V.forEach(function(v){
+    var k = karte(v.id);
+    if(PLAN.istNeu(k)) return;
+    gelernt++;
+    var d = Math.round((PLAN.tagesbeginn(k.faellig) - b0) / TAG);
+    if(d < 0) d = 0;
+    if(d < 7) tage7[d]++;
+  });
+  if(!gelernt) return "";
+  var max = Math.max.apply(null, tage7.concat([1]));
+  var h = '<h3>Nächste 7 Tage</h3><div class="prognose">';
+  for(var i = 0; i < 7; i++){
+    var name = i === 0 ? "heute" : i === 1 ? "morgen"
+      : new Date(b0 + i * TAG + 6 * 3600000).toLocaleDateString("de-DE", { weekday: "short" }).replace(".", "");
+    h += '<div class="pspalte"><span class="pzahl">' + tage7[i] + "</span>"
+      + '<span class="pbalken"><i style="height:' + Math.round(tage7[i] / max * 100) + '%"></i></span>'
+      + '<span class="ptag">' + name + "</span></div>";
+  }
+  return h + "</div>";
+}
+
 function zeichneStand(){
   var begonnen = 0, gefestigt = 0;
   V.forEach(function(v){
@@ -579,7 +663,7 @@ function zeichneStand(){
       + "</button>";
   }
 
-  var html = "";
+  var html = prognoseHtml();
   var stufen = [5, 4].filter(function(n){ return V.some(function(v){ return v.n === n; }); });
   if(stufen.length){
     html += "<h3>JLPT</h3>";
@@ -838,6 +922,14 @@ function listeStufeAnzeigen(){
   });
 }
 
+var NEU_LIMITS = [5, 10, 15, 20, 30, 50, 0];
+function neuAnzeigen(){
+  $("#neuKnopf").textContent = einst.neuProTag === 0 ? "alle" : einst.neuProTag;
+  $("#neuText").textContent = einst.neuProTag === 0
+    ? "Keine Begrenzung für neue Wörter"
+    : "Höchstens " + einst.neuProTag + " neue Wörter pro Tag";
+}
+
 var LIMITS = [20, 40, 60, 100, 0];
 function limitAnzeigen(){
   $("#limitKnopf").textContent = einst.limit === 0 ? "alle" : einst.limit;
@@ -987,6 +1079,17 @@ function verdrahten(){
     zeichneLernen();
   });
 
+  $("#neuKnopf").addEventListener("click", function(){
+    var i = NEU_LIMITS.indexOf(einst.neuProTag);
+    einst.neuProTag = NEU_LIMITS[(i + 1) % NEU_LIMITS.length];
+    einstSichern();
+    neuAnzeigen();
+    schlangeBauen(false);
+    zeichneLernen();
+    kopfAktualisieren();
+    zeichneFilter();
+  });
+
   $("#knopfKopieren").addEventListener("click", standKopieren);
   $("#knopfLaden").addEventListener("click", standLaden);
   $("#knopfReset").addEventListener("click", standReset);
@@ -1001,8 +1104,9 @@ function verdrahten(){
       else bewerte("gut");
     }
     if(umgedreht && e.key === "1") bewerte("nochmal");
-    if(umgedreht && e.key === "2") bewerte("gut");
-    if(umgedreht && e.key === "3") bewerte("leicht");
+    if(umgedreht && e.key === "2") bewerte("schwer");
+    if(umgedreht && e.key === "3") bewerte("gut");
+    if(umgedreht && e.key === "4") bewerte("leicht");
   });
 
   // Tageswechsel oder Rückkehr in die App: fällige Karten neu bestimmen
@@ -1067,6 +1171,7 @@ function start(){
 
   verdrahten();
   limitAnzeigen();
+  neuAnzeigen();
   themaSetzen(einst.thema);
   zeichneFilter();
   schlangeBauen(false);
