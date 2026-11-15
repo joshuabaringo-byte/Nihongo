@@ -376,6 +376,24 @@ function stufenPunkte(stufe, klasse){
   return h + "</div>";
 }
 
+/* Lange Wörter sollen in die Karte passen. Japanisch hat keine Leerzeichen, ein langes
+   Wort läuft sonst seitlich heraus. Erst wird die Schrift kleiner (bis MIN_SCHRIFT),
+   reicht das nicht, bricht das Wort in zwei Zeilen um. */
+var MIN_SCHRIFT = 22;
+function passeAn(knoten){
+  Array.prototype.forEach.call(knoten || [], function(el){
+    el.style.fontSize = ""; el.style.wordBreak = ""; el.style.overflowWrap = "";
+    var seite = el.parentNode;
+    var cs = getComputedStyle(seite);
+    var platz = seite.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    if(platz <= 0 || el.scrollWidth <= platz + 1) return;
+    var g = parseFloat(getComputedStyle(el).fontSize);
+    while(el.scrollWidth > platz + 1 && g > MIN_SCHRIFT){ g -= 1; el.style.fontSize = g + "px"; }
+    if(el.scrollWidth > platz + 1){ el.style.wordBreak = "normal"; el.style.overflowWrap = "anywhere"; }
+  });
+}
+function karteAnpassen(){ passeAn(document.querySelectorAll("#kartenbereich .wort.jp")); }
+
 function zeichneLernen(){
   var bereich = $("#kartenbereich");
   var leiste  = $("#sitzungsleiste");
@@ -439,6 +457,7 @@ function zeichneLernen(){
   umgedreht = false;
   zeichneSteuerung();
   karteGesten();
+  karteAnpassen();
 }
 
 /* Bild zu einem Wort, falls bilder.js geladen ist und Bilder erwünscht sind. */
@@ -1163,6 +1182,13 @@ function start(){
   $("#ueberSpanne").textContent  = spanne;
   richtungAnzeigen();
   listeStufeAnzeigen();
+  // Die Schrift kann später geladen werden und das Telefon gedreht; dann neu anpassen.
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(karteAnpassen);
+  var anpassUhr = null;
+  window.addEventListener("resize", function(){
+    clearTimeout(anpassUhr);
+    anpassUhr = setTimeout(karteAnpassen, 120);
+  });
 
   // gespeicherter Filter kann auf einen leeren Problemfilter zeigen
   if(einst.filter.art === "problem" && !V.filter(istProblem).length){
@@ -1205,7 +1231,7 @@ function start(){
 window.KOTOBA = {
   esc: esc, einst: einst, hole: hole, lege: lege,
   sprich: sprich, spracheDa: spracheDa, melde: melde,
-  blattAuf: blattAuf, blattZu: blattZu
+  blattAuf: blattAuf, blattZu: blattZu, passeAn: passeAn
 };
 
 try{
