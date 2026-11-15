@@ -377,6 +377,25 @@ h3:first-child{margin-top:2px;}
   background:var(--bg-2);border-radius:8px;
   padding:2px 8px;
 }
+/* Oben rechts auf der Karte: JLPT-Stufe und Wortart nebeneinander */
+.chips{
+  position:absolute;top:12px;right:16px;
+  display:flex;align-items:center;gap:6px;
+}
+.chips .wortart{position:static;}
+.stufe{
+  font-size:.64rem;font-weight:700;letter-spacing:.06em;line-height:1.5;
+  color:var(--akzent);
+  background:color-mix(in srgb, var(--akzent) 13%, var(--flaeche));
+  border-radius:8px;padding:2px 8px;
+}
+@supports not (background: color-mix(in srgb, red 50%, blue)){
+  .stufe{background:var(--bg-2);}
+}
+.kanjizeile{
+  font-family:var(--jp);font-size:1.2rem;font-weight:500;color:var(--text-2);
+  line-height:1.4;margin-top:1px;
+}
 .stufenpunkte{
   position:absolute;bottom:14px;left:0;right:0;
   display:flex;justify-content:center;gap:5px;
@@ -532,6 +551,8 @@ h3:first-child{margin-top:2px;}
 .wortliste{
   background:var(--flaeche);
   border-radius:var(--r-m);overflow:hidden;margin-bottom:8px;
+  /* Über tausend Zeilen: was außerhalb des Bildschirms liegt, wird nicht gesetzt. */
+  content-visibility:auto;contain-intrinsic-size:auto 520px;
 }
 .wortzeile{
   display:flex;align-items:center;gap:12px;
@@ -544,6 +565,8 @@ h3:first-child{margin-top:2px;}
 .wortzeile .kana{
   font-family:var(--jp);font-size:1.06rem;font-weight:600;line-height:1.35;
 }
+.wortzeile .kanjiw{font-size:.95rem;color:var(--text-2);}
+.wortzeile .rechts .stufe{font-size:.6rem;padding:1px 6px;}
 .wortzeile .romaji{
   font-family:var(--mono);font-size:.72rem;color:var(--grau);letter-spacing:.03em;
 }

@@ -959,18 +959,41 @@ const ROH = [
 ["7-4","カフェオレ","kafeore","Café au Lait","N"]
 ];
 
-const V = ROH.map(r => ({
-  id: r[0] + "|" + r[1],
-  ab: r[0],
-  t: ABSCHNITTE[r[0]].t,
-  kana: r[1],
-  romaji: r[2],
-  de: r[3],
-  wa: r[4],
-  gr: r[5] || 0,      // Verbgruppe 1, 2 oder 3; 0 = noch nicht bekannt
-  en: r[6] || "",     // englische Bedeutung, wo die Quelle sie mitliefert
-  kanji: r[7] || ""   // Schreibung in Kanji, wo es eine gibt
-}));
+/* Der Wortschatz der JLPT-Stufen N5 und N4 liegt in vokabeln-jlpt.js, das
+   vorher geladen sein muss. Fehlt die Datei, bleibt es beim Kursbestand. */
+const STUFEN_GRUPPEN = { 8: 5, 9: 4 };     // Gruppe -> JLPT-Stufe
+if(typeof STUFEN_ROH !== "undefined"){
+  Object.assign(ABSCHNITTE, STUFEN_ABSCHNITTE);
+  STUFEN_ROH.forEach(function(r){ ROH.push(r); });
+}
+
+/* Kennung = Abschnitt|Kana. Zwei Wörter mit gleicher Lesung im selben
+   Abschnitt (zwei Zähler ～かい, zwei くれます) bekommen zusätzlich ihre
+   Kanji oder Bedeutung angehängt; das erste behält die schlichte Kennung. */
+const _kennungen = {};
+const V = ROH.map(r => {
+  let id = r[0] + "|" + r[1];
+  if(_kennungen[id]) id += "|" + (r[7] || r[3]);
+  _kennungen[id] = 1;
+  const t = ABSCHNITTE[r[0]].t;
+  return {
+    id: id,
+    ab: r[0],
+    t: t,
+    kana: r[1],
+    romaji: r[2],
+    de: r[3],
+    wa: r[4],
+    gr: r[5] || 0,      // Verbgruppe 1, 2 oder 3; 0 = noch nicht bekannt
+    // Englisch und Kanji, wo die Quelle sie mitliefert. Kurswörter, die dort
+    // fehlen, bekommen beides aus der JLPT-Liste (STUFEN_ENGLISCH, STUFEN_KANJI).
+    en: r[6] || (typeof STUFEN_ENGLISCH !== "undefined" && STUFEN_ENGLISCH[id]) || "",
+    kanji: r[7] || (typeof STUFEN_KANJI !== "undefined" && STUFEN_KANJI[id]) || "",
+    // JLPT-Stufe 5 oder 4, 0 = nicht auf der Liste. Wörter der Kursabschnitte
+    // tragen sie über STUFEN_ZUORDNUNG, die der JLPT-Gruppen über ihre Gruppe.
+    n: STUFEN_GRUPPEN[t] || (typeof STUFEN_ZUORDNUNG !== "undefined" && STUFEN_ZUORDNUNG[id]) || 0
+  };
+});
 
 /* Vorhandene Topics, aus ABSCHNITTE abgeleitet. Für ein neues Topic genügen
    deshalb ein Eintrag oben in ABSCHNITTE und die Wörter in ROH - die App
@@ -978,7 +1001,9 @@ const V = ROH.map(r => ({
 /* Nicht jede Gruppe ist ein Topic des Buchs. Wer hier keinen Eintrag hat,
    heisst schlicht "Topic n". */
 const TOPICNAMEN = {
-  0: { lang: "Grundlagen", kurz: "G" }
+  0: { lang: "Grundlagen", kurz: "G" },
+  8: { lang: "JLPT N5", kurz: "N5" },
+  9: { lang: "JLPT N4", kurz: "N4" }
 };
 function topicName(t){
   return TOPICNAMEN[t] || { lang: "Topic " + t, kurz: "T" + t };
