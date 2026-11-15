@@ -197,8 +197,11 @@ button{background:none;border:0;cursor:pointer;}
 .kopf .rund:active{background:var(--bg-2);}
 .kopf .rund svg{width:21px;height:21px;}
 
-main{
-  padding:18px 0 calc(var(--leiste-h) + var(--unten) + 26px);
+/* Unten Platz für die Tab-Leiste. "main.wrap" statt "main": die Regel .wrap setzt
+   padding:0 16px und schlägt als Klasse den bloßen Elementnamen, so war der Abstand
+   unten bisher immer 0 - der letzte Knopf ließ sich nie über die Leiste scrollen. */
+main.wrap{
+  padding-bottom:calc(var(--leiste-h) + var(--unten) + 26px);
 }
 section[hidden]{display:none;}
 
@@ -394,7 +397,7 @@ h3:first-child{margin-top:2px;}
 }
 .kanjizeile{
   font-family:var(--jp);font-size:1.2rem;font-weight:500;color:var(--text-2);
-  line-height:1.4;margin-top:1px;
+  line-height:1.4;margin-top:1px;overflow-wrap:anywhere;
 }
 .stufenpunkte{
   position:absolute;bottom:14px;left:0;right:0;
@@ -488,9 +491,13 @@ h3:first-child{margin-top:2px;}
    "alles erledigt" blieb der Balken mit alten Zahlen stehen. */
 .sitzung[hidden]{display:none;}
 
-/* Drei Richtungen und vier Antworten nebeneinander: auf sehr schmalen Telefonen etwas kleiner */
+/* Drei Richtungen nebeneinander: auf schmaleren Telefonen etwas kleiner und ohne
+   Umbruch, sonst bricht "Deutsch → かな" mitten im Wort um. */
+@media (max-width: 400px){
+  .segment button{font-size:.76rem;padding:9px 2px;white-space:nowrap;}
+}
 @media (max-width: 360px){
-  .segment button{font-size:.74rem;padding:9px 3px;}
+  .segment button{font-size:.72rem;}
 }
 
 /* ---------- 8. Fortschritt / Karten ---------- */

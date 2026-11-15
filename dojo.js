@@ -844,6 +844,7 @@ function zeichneFrage(neu){
     + "</div>"
     + '<div id="dNach">' + (r.wahl >= 0 ? nachHtml(q, b, b.opt[r.wahl].ok) : "") + "</div>";
   $("#dSpiel").innerHTML = h;
+  if(K.passeAn) K.passeAn(document.querySelectorAll("#dSpiel .wort.jp"));   // lange Wörter in die Karte passen
   if(r.wahl >= 0) hoerTextZeigen();
 
   if(neu){
