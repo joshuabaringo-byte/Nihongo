@@ -133,9 +133,10 @@ was in einer Prüfung vorkommt.
 
 ## Wiederholungsplan
 
-Der Plan rechnet mit **FSRS**, demselben Verfahren, das Anki benutzt. Gerechnet wird
-nicht in der App selbst, sondern in der offiziellen Bibliothek
-[ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) von Open Spaced Repetition
+Der Plan rechnet mit **FSRS** (Free Spaced Repetition Scheduler), einem freien
+Verfahren des Projekts Open Spaced Repetition. Gerechnet wird nicht in der App selbst,
+sondern in dessen offizieller Bibliothek
+[ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs)
 (Version 5.4.2, Modell FSRS-6, MIT-Lizenz). Sie liegt unverändert in `ts-fsrs/`;
 `plan.js` übersetzt nur zwischen dem Lernstand der App und den Karten der Bibliothek.
 
@@ -152,7 +153,7 @@ Wort dann noch mit 90 % Wahrscheinlichkeit weißt. **nochmal** schickt das Wort 
 wachsende Abstände. Wer ein Wort zu spät wiederholt und es trotzdem weiß, bekommt
 einen größeren Sprung. Die Knöpfe zeigen vorher, was jede Antwort bewirkt.
 
-Alle Einstellungen sind die Vorgaben der Bibliothek, wie in Anki (Ziel 90 %,
+Alle Einstellungen sind die Vorgaben der Bibliothek (Ziel 90 %,
 Lernschritte 1 und 10 Minuten, nach einem Fehler 10 Minuten, Abstand höchstens
 36 500 Tage). Dazu ist die Streuung an, damit Wörter, die am selben Tag gelernt wurden,
 nicht alle am selben Tag wiederkommen.
