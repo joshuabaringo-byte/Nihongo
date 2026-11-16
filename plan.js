@@ -1,56 +1,73 @@
 /* ==================================================================
-   Wiederholungsplan nach dem Vorbild von Anki
+   Wiederholungsplan mit FSRS über die offizielle Bibliothek ts-fsrs
 
-   Nur Rechenfunktionen, kein Zugriff auf die Seite. So lässt sich der Plan
-   einzeln prüfen; app.js ruft ihn auf.
+   Gerechnet wird nicht hier, sondern in ts-fsrs 5.4.2 von Open Spaced
+   Repetition (MIT-Lizenz, unverändert in ts-fsrs/index.umd.js). Die Bibliothek
+   rechnet mit FSRS-6, demselben Verfahren, das Anki benutzt. Diese Datei
+   übersetzt nur zwischen dem Lernstand der App und den Karten der Bibliothek;
+   app.js ruft sie auf wie bisher.
 
    Ein Wort durchläuft drei Zustände:
      neu        noch nie gesehen
-     lernt      in Minutenschritten (1 und 10 Minuten), auch nach einem Fehler
-     wiederholt Abstand in Tagen, der mit jeder richtigen Antwort wächst
+     lernt      in Minutenschritten (1 und 10 Minuten, nach einem Fehler 10)
+     wiederholt Abstand in Tagen, aus Stabilität und Schwierigkeit des Wortes
 
-   Vier Antworten: nochmal, schwer, sitzt (gut), leicht. Jedes Wort hat einen
-   eigenen Wachstumsfaktor: wer oft "schwer" oder "nochmal" drückt, dessen
-   Abstände wachsen langsamer, wer "leicht" drückt, schneller.
-
-   Gespeichert wird je Wort (Feldnamen sind Teil des Lernstands, nicht umbenennen):
-     stufe   0 bis 6, nur zur Anzeige und für den Filter "gefestigt" (aus ivl abgeleitet)
-     faellig Zeitpunkt in Millisekunden
-     fehler  wie oft ein gelerntes Wort vergessen wurde
-     ivl     Abstand in Tagen
-     faktor  Wachstumsfaktor in Prozent, Start 250
-     lern    Nummer des Lernschritts, nur solange das Wort in Minutenschritten lernt
+   Gespeichert wird je Wort (Feldnamen sind Teil des Lernstands, nicht umbenennen;
+   in Klammern das Feld der Bibliothek):
+     stufe   1 bis 6, nur zur Anzeige und für den Filter "gefestigt" (aus ivl abgeleitet)
+     faellig Zeitpunkt in Millisekunden                         (due)
+     fehler  wie oft ein gelerntes Wort vergessen wurde         (lapses)
+     ivl     geplanter Abstand in Tagen, 0 solange es lernt     (scheduled_days)
+     lern    Nummer des Lernschritts, nur solange es lernt      (learning_steps)
+     s       Stabilität in Tagen                                (stability)
+     d       Schwierigkeit von 1 bis 10                         (difficulty)
+     st      1 lernt, 2 wiederholt, 3 lernt nach einem Fehler   (state)
+     wdh     Zahl der Antworten                                 (reps)
+     zuletzt Zeitpunkt der letzten Antwort                      (last_review)
+   Wörter aus der Zeit vor FSRS haben noch kein s und d. Die Bibliothek setzt
+   beides bei der nächsten Antwort selbst, als wäre es die erste. Ihr Termin
+   bleibt bis dahin, wie er war; ein altes Feld faktor bleibt stehen, wird
+   aber nicht mehr benutzt.
    ================================================================== */
 (function (wurzel) {
 "use strict";
 
+var L = wurzel.FSRS || (typeof require === "function" ? require("./ts-fsrs/index.umd.js") : null);
+if(!L) return;              // Bibliothek fehlt: app.js lädt dann einmal neu
+
 var MIN = 60000, TAG = 86400000;
 
-/* Stellschrauben */
-var LERNSCHRITTE  = [1, 10];   // Minuten, neues Wort
-var FEHLSCHRITTE  = [10];      // Minuten, Wort nach einem Fehler
-var ERSTER_ABSTAND = 1;        // Tage, wenn der letzte Lernschritt gelingt
-var LEICHT_START  = 4;         // Tage, wenn ein neues Wort gleich "leicht" ist
-var FAKTOR_START  = 250;       // Prozent
-var FAKTOR_MIN    = 130;
-var FAKTOR_MAX    = 350;
-var FEHLER_REST   = 0.3;       // so viel vom Abstand bleibt nach einem Fehler
-var SCHWER_FAKTOR = 1.2;
-var LEICHT_BONUS  = 1.3;
-var MAX_ABSTAND   = 365;       // Tage
-var TAGESWECHSEL  = 4;         // Uhr: davor gehört der Zeitpunkt noch zum Vortag
-var VORAUS        = 20;        // Minuten: so weit im Voraus zeigt ein Durchgang Lernkarten
+/* Einstellungen der Bibliothek. Alle Werte sind ihre Vorgaben (wie in Anki),
+   nur die Streuung ist eingeschaltet, damit Wörter, die am selben Tag gelernt
+   wurden, nicht alle am selben Tag wiederkommen. */
+var EINSTELLUNG = {
+  request_retention: 0.9,          // Ziel: 90 % der fälligen Wörter noch wissen
+  maximum_interval: 36500,         // Tage
+  enable_fuzz: true,
+  enable_short_term: true,
+  learning_steps: ["1m", "10m"],
+  relearning_steps: ["10m"]
+};
+var planer = L.fsrs(L.generatorParameters(EINSTELLUNG));
+/* Für die Beschriftung der Knöpfe ohne Streuung, wie bisher. */
+var planerOhneStreuung = L.fsrs(L.generatorParameters(
+  Object.assign({}, EINSTELLUNG, { enable_fuzz: false })));
 
-/* Die frühere Treppe. Sie bleibt für die Punkte der Anzeige und für die
-   Übernahme alter Lernstände. */
-var TREPPE    = [1, 2, 4, 8, 17, 35];
-var MAXSTUFE  = TREPPE.length;
+var TAGESWECHSEL = 4;        // Uhr: davor gehört der Zeitpunkt noch zum Vortag
+var VORAUS       = 20;       // Minuten: so weit im Voraus zeigt ein Durchgang Lernkarten
+
+/* Treppe für die Punkte der Anzeige und für die Übernahme alter Lernstände. */
+var TREPPE   = [1, 2, 4, 8, 17, 35];
+var MAXSTUFE = TREPPE.length;
 
 var NOTEN = ["nochmal", "schwer", "gut", "leicht"];
+var BEWERTUNG = { nochmal: L.Rating.Again, schwer: L.Rating.Hard, gut: L.Rating.Good, leicht: L.Rating.Easy };
 
 /* ---------- Tage ----------
    Fällig wird zum Tageswechsel, nicht auf die Minute: was heute um 19:35 gelernt
-   wird und morgen dran ist, liegt morgen ab vier Uhr früh bereit. */
+   wird und morgen dran ist, liegt morgen ab vier Uhr früh bereit. Den Abstand
+   in Tagen bestimmt die Bibliothek, hier wird nur der Termin auf den Tagesbeginn
+   gelegt. */
 function tagesbeginn(zeit){
   var d = new Date(zeit);
   d.setHours(TAGESWECHSEL, 0, 0, 0);
@@ -83,98 +100,73 @@ function istBald(k, jetzt){
   return !istNeu(k) && k.faellig <= jetzt + (k.lern !== undefined ? VORAUS * MIN : 0);
 }
 
-/* Streuung: Wörter, die am selben Tag gelernt wurden, sollen nicht alle am selben
-   Tag wiederkommen. Ab drei Tagen wird der Abstand um ein paar Tage gestreut
-   (wie bei Anki). zufall liefert eine Zahl von 0 bis unter 1; 0,5 ergibt keine
-   Streuung, so rechnet die Vorschau der Knöpfe. */
-function streuen(abstand, zufall){
-  if(abstand < 3) return abstand;
-  var r = abstand < 7 ? 1 : abstand < 20 ? 2 : Math.max(2, Math.round(abstand * 0.05));
-  return Math.max(1, abstand - r + Math.floor(zufall() * (2 * r + 1)));
+/* ---------- Übersetzung ---------- */
+function zustandVon(k){
+  if(k.st === L.State.Learning || k.st === L.State.Review || k.st === L.State.Relearning) return k.st;
+  // Wort aus der Zeit vor FSRS
+  if(k.lern === undefined) return L.State.Review;
+  return k.ivl > 0 ? L.State.Relearning : L.State.Learning;
 }
-var MITTE = function(){ return 0.5; };
 
-function zustand(k){
+/* Lernstand eines Wortes -> Karte der Bibliothek */
+function zuKarte(k, jetzt){
+  if(istNeu(k)) return L.createEmptyCard(new Date(jetzt));
   return {
-    stufe:  (k && k.stufe)  || 0,
-    faellig:(k && k.faellig)|| 0,
-    fehler: (k && k.fehler) || 0,
-    ivl:    (k && k.ivl)    || 0,
-    faktor: (k && k.faktor) || FAKTOR_START,
-    lern:   k ? k.lern : undefined
+    due:            new Date(k.faellig || 0),
+    stability:      k.s || 0,
+    difficulty:     k.d || 0,
+    elapsed_days:   0,               // rechnet die Bibliothek aus last_review selbst aus
+    scheduled_days: k.ivl || 0,
+    reps:           k.wdh || 0,
+    lapses:         k.fehler || 0,
+    learning_steps: k.lern || 0,
+    state:          zustandVon(k),
+    last_review:    k.zuletzt ? new Date(k.zuletzt) : undefined
   };
+}
+
+/* Karte der Bibliothek -> Lernstand. k bleibt unberührt; Felder, die die
+   Bibliothek nicht kennt (etwa ein alter faktor), werden mitgenommen. */
+function vonKarte(k, c, jetzt){
+  var n = {};
+  Object.keys(k || {}).forEach(function(f){ n[f] = k[f]; });
+  var m = 0, t = 0;
+  n.s       = c.stability;
+  n.d       = c.difficulty;
+  n.st      = c.state;
+  n.wdh     = c.reps;
+  n.fehler  = c.lapses;
+  n.ivl     = c.scheduled_days;
+  n.zuletzt = jetzt;
+  if(c.state === L.State.Review){
+    t = c.scheduled_days;
+    n.faellig = faelligNach(jetzt, t);
+    delete n.lern;
+  }else{
+    m = Math.max(1, Math.round((c.due.getTime() - jetzt) / MIN));
+    n.faellig = c.due.getTime();
+    n.lern = c.learning_steps;
+  }
+  n.stufe = stufeVon(n);
+  return { k: n, minuten: m, tage: t };
 }
 
 /* ---------- Ein Schritt ----------
    Rechnet aus, was eine Antwort bewirkt, ohne das Wort selbst zu ändern.
-   Rückgabe: k (neuer Zustand), minuten (bleibt in Minutenschritten, kommt nach
-   so vielen Minuten wieder) oder tage (kommt nach so vielen Tagen wieder).
-   zufall ist freiwillig und nur für Prüfungen gedacht. */
-function schritt(k, note, jetzt, zufall){
-  zufall = zufall || Math.random;
-  var n = zustand(k);
-  var neu = !n.stufe;
-  var lernt = n.lern !== undefined;
-  var m = 0, t = 0;
-
-  if(neu || lernt){
-    var nachFehler = n.ivl > 0;                  // schon einmal gelernt, dann vergessen
-    var schritte = nachFehler ? FEHLSCHRITTE : LERNSCHRITTE;
-    var i = neu ? 0 : Math.min(n.lern, schritte.length - 1);
-
-    if(note === "nochmal"){
-      n.lern = 0; m = schritte[0];
-    }else if(note === "schwer"){
-      n.lern = i;
-      m = (i === 0 && schritte.length > 1) ? Math.round((schritte[0] + schritte[1]) / 2) : schritte[i];
-    }else if(note === "gut" && i + 1 < schritte.length){
-      n.lern = i + 1; m = schritte[i + 1];
-    }else{                                       // letzter Schritt geschafft, oder gleich "leicht"
-      if(nachFehler) t = note === "leicht" ? n.ivl + 1 : n.ivl;
-      else           t = note === "leicht" ? LEICHT_START : ERSTER_ABSTAND;
-      n.ivl = Math.min(MAX_ABSTAND, t);
-      t = n.ivl;
-      delete n.lern;
-      n.faellig = faelligNach(jetzt, t);
-    }
-    if(m) n.faellig = jetzt + m * MIN;
-    n.stufe = Math.max(1, stufeVon(n));
-    return { k: n, minuten: m, tage: t };
-  }
-
-  /* Wiederholung */
-  var ivl = Math.max(1, n.ivl);
-  var zuspaet = Math.max(0, Math.floor((jetzt - n.faellig) / TAG));   // Tage über die Zeit
-  var f = n.faktor / 100;
-  var schwer = Math.max(ivl + 1, Math.round((ivl + zuspaet / 4) * SCHWER_FAKTOR));
-  var gut    = Math.max(schwer + 1, Math.round((ivl + zuspaet / 2) * f));
-  var leicht = Math.max(gut + 1, Math.round((ivl + zuspaet) * f * LEICHT_BONUS));
-
-  if(note === "nochmal"){
-    n.fehler += 1;
-    n.faktor = Math.max(FAKTOR_MIN, n.faktor - 20);
-    n.ivl = Math.max(1, Math.round(ivl * FEHLER_REST));
-    n.lern = 0; m = FEHLSCHRITTE[0];
-    n.faellig = jetzt + m * MIN;
-  }else{
-    var abstand;
-    if(note === "schwer"){ n.faktor = Math.max(FAKTOR_MIN, n.faktor - 15); abstand = schwer; }
-    else if(note === "gut"){ abstand = gut; }
-    else{ n.faktor = Math.min(FAKTOR_MAX, n.faktor + 15); abstand = leicht; }
-    n.ivl = Math.min(MAX_ABSTAND, streuen(abstand, zufall));
-    t = n.ivl;
-    n.faellig = faelligNach(jetzt, t);
-  }
-  n.stufe = Math.max(1, stufeVon(n));
-  return { k: n, minuten: m, tage: t };
+   Rückgabe: k (neuer Zustand), minuten (lernt noch, kommt nach so vielen
+   Minuten wieder) oder tage (kommt nach so vielen Tagen wieder). */
+function schritt(k, note, jetzt){
+  var c = planer.next(zuKarte(k, jetzt), new Date(jetzt), BEWERTUNG[note]).card;
+  return vonKarte(k, c, jetzt);
 }
 
 /* Was jede Antwort bewirken würde, für die Beschriftung der Knöpfe. */
 function vorschau(k, jetzt){
+  var alle = planerOhneStreuung.repeat(zuKarte(k, jetzt), new Date(jetzt));
   var aus = {};
   NOTEN.forEach(function(note){
-    var s = schritt(k, note, jetzt, MITTE);
-    aus[note] = { minuten: s.minuten, tage: s.tage };
+    var e = vonKarte(k, alle[BEWERTUNG[note]].card, jetzt);
+    aus[note] = { minuten: e.minuten, tage: e.tage };
   });
   return aus;
 }
@@ -190,35 +182,44 @@ function dauer(e){
 }
 
 /* ---------- Lernstand einlesen ----------
-   Nimmt auch Stände aus früheren Fassungen (nur stufe, faellig, fehler) und
-   ergänzt, was fehlt. Rückgabe false: der Eintrag sagt nichts aus. */
+   Nimmt auch Stände aus früheren Fassungen (Treppe: nur stufe, faellig, fehler;
+   Anki-Nachbau: dazu ivl, faktor, lern) und ergänzt, was fehlt.
+   Rückgabe false: der Eintrag sagt nichts aus. */
+function zahl(x){ return typeof x === "number" && isFinite(x) && x >= 0; }
 function normalisieren(k){
   if(!k || typeof k !== "object") return false;
-  if(typeof k.stufe   !== "number" || k.stufe < 0)  k.stufe   = 0;
-  if(typeof k.faellig !== "number")                 k.faellig = 0;
-  if(typeof k.fehler  !== "number" || k.fehler < 0) k.fehler  = 0;
+  if(!zahl(k.stufe))   k.stufe   = 0;
+  if(!zahl(k.faellig)) k.faellig = 0;
+  if(!zahl(k.fehler))  k.fehler  = 0;
   if(k.stufe > MAXSTUFE) k.stufe = MAXSTUFE;
   if(k.stufe === 0 && k.fehler === 0) return false;
 
-  if(typeof k.faktor !== "number" || k.faktor < FAKTOR_MIN) k.faktor = FAKTOR_START;
-  if(k.faktor > FAKTOR_MAX) k.faktor = FAKTOR_MAX;
   if(typeof k.lern !== "number") delete k.lern;
-  if(typeof k.ivl !== "number" || k.ivl < 0){
+  if(!zahl(k.ivl)){
     // Wort aus der früheren Treppe: der Abstand der Stufe wird übernommen,
     // der Termin bleibt wie er war.
     k.ivl = k.stufe > 0 ? TREPPE[Math.min(k.stufe, MAXSTUFE) - 1] : 0;
     // Das frühere "nochmal" setzte auf Stufe 1 und "sofort fällig": jetzt ein Lernschritt.
     if(k.stufe === 1 && k.faellig === 0 && k.fehler > 0) k.lern = 0;
   }
+  ["wdh", "zuletzt"].forEach(function(f){ if(!zahl(k[f])) delete k[f]; });
+  // Stabilität und Schwierigkeit nur zusammen und nur in dem Bereich, den die
+  // Bibliothek annimmt; sonst setzt sie beides bei der nächsten Antwort neu.
+  if(!(zahl(k.s) && k.s >= L.S_MIN && zahl(k.d) && k.d >= 1 && k.d <= 10)){ delete k.s; delete k.d; }
+  if(k.st !== L.State.Learning && k.st !== L.State.Review && k.st !== L.State.Relearning) delete k.st;
+  // Zustand und Lernschritt passen zusammen
+  if(k.st === L.State.Review) delete k.lern;
+  else if(k.st !== undefined && k.lern === undefined) k.lern = 0;
   if(k.stufe === 0) k.stufe = 1;
   return true;
 }
 
 var PLAN = {
   MIN: MIN, TAG: TAG, NOTEN: NOTEN, TREPPE: TREPPE, MAXSTUFE: MAXSTUFE,
+  BIBLIOTHEK: "ts-fsrs " + L.FSRSVersion, EINSTELLUNG: EINSTELLUNG,
   tagesbeginn: tagesbeginn, faelligNach: faelligNach, stufeVon: stufeVon,
   istNeu: istNeu, istDran: istDran, istBald: istBald,
-  schritt: schritt, streuen: streuen, vorschau: vorschau, dauer: dauer, normalisieren: normalisieren
+  zuKarte: zuKarte, schritt: schritt, vorschau: vorschau, dauer: dauer, normalisieren: normalisieren
 };
 
 if(typeof module !== "undefined" && module.exports) module.exports = PLAN;
