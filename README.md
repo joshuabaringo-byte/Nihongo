@@ -133,28 +133,34 @@ was in einer Prüfung vorkommt.
 
 ## Wiederholungsplan
 
-Der Plan folgt dem Vorbild von Anki. Die Rechnung steht in `plan.js`; die Zahlen dort
-sind Stellschrauben.
+Der Plan rechnet mit **FSRS**, demselben Verfahren, das Anki benutzt. Gerechnet wird
+nicht in der App selbst, sondern in der offiziellen Bibliothek
+[ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) von Open Spaced Repetition
+(Version 5.4.2, Modell FSRS-6, MIT-Lizenz). Sie liegt unverändert in `ts-fsrs/`;
+`plan.js` übersetzt nur zwischen dem Lernstand der App und den Karten der Bibliothek.
 
 **Neue Wörter** lernen in Minutenschritten: nach der ersten Antwort kommt das Wort nach
 1 oder 10 Minuten wieder (im Durchgang schon nach einigen Karten), erst dann bekommt es
 einen Abstand in Tagen. Ein neues Wort, das du gleich mit **leicht** beantwortest,
-kommt erst in 4 Tagen wieder.
+kommt erst in etwa 8 Tagen wieder.
 
-**Gelernte Wörter** wachsen: Jedes Wort hat einen eigenen Faktor, anfangs 2,5.
+**Gelernte Wörter:** FSRS merkt sich für jedes Wort zwei Werte: die *Stabilität* (wie
+lange du es behältst) und die *Schwierigkeit*. Aus jeder Antwort und der Zeit seit der
+letzten Abfrage berechnet es beide neu und legt den nächsten Termin so, dass du das
+Wort dann noch mit 90 % Wahrscheinlichkeit weißt. **nochmal** schickt das Wort für
+10 Minuten zurück in die Lernschritte; **schwer**, **sitzt** und **leicht** geben
+wachsende Abstände. Wer ein Wort zu spät wiederholt und es trotzdem weiß, bekommt
+einen größeren Sprung. Die Knöpfe zeigen vorher, was jede Antwort bewirkt.
 
-| Antwort | Abstand | Faktor |
-|---|---|---|
-| **nochmal** | 10 Minuten, danach etwa ein Drittel des alten Abstands (mindestens 1 Tag) | −0,20 |
-| **schwer** | alter Abstand × 1,2 | −0,15 |
-| **sitzt** | alter Abstand × Faktor | bleibt |
-| **leicht** | alter Abstand × Faktor × 1,3 | +0,15 |
+Alle Einstellungen sind die Vorgaben der Bibliothek, wie in Anki (Ziel 90 %,
+Lernschritte 1 und 10 Minuten, nach einem Fehler 10 Minuten, Abstand höchstens
+36 500 Tage). Dazu ist die Streuung an, damit Wörter, die am selben Tag gelernt wurden,
+nicht alle am selben Tag wiederkommen.
 
-Wer oft **schwer** oder **nochmal** drückt, dessen Abstände wachsen langsamer, wer
-**leicht** drückt, schneller. Der Faktor bleibt zwischen 1,3 und 3,5. Ein Abstand kann
-bis zu einem Jahr wachsen. Was zu spät drankommt, bekommt einen Teil der Verspätung
-als Zuschlag. Ab drei Tagen werden die Abstände um ein paar Tage gestreut, damit Wörter,
-die am selben Tag gelernt wurden, nicht alle am selben Tag wiederkommen.
+**Umstellung von früheren Fassungen:** Ältere Lernstände bleiben erhalten, ihre
+Termine auch. Weil sie noch keine Stabilität und Schwierigkeit haben, setzt die
+Bibliothek beides bei der nächsten Antwort neu, als wäre es die erste. Der Abstand
+beginnt dann wieder klein und wächst rasch.
 
 **Fällig** wird zum Tageswechsel um vier Uhr früh, nicht auf die Minute: Was du heute um
 19:35 lernst und morgen dran ist, liegt morgen ab vier Uhr bereit.
@@ -303,7 +309,8 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `index.html` | Aufbau der Seite |
 | `app.css` | Gestaltung „Papier", hell und dunkel |
 | `app.js` | Karteikarten, Durchgänge, Speicherung |
-| `plan.js` | der Wiederholungsplan (reine Rechnung) |
+| `plan.js` | der Wiederholungsplan: verbindet die App mit ts-fsrs |
+| `ts-fsrs/` | die Bibliothek ts-fsrs 5.4.2, unverändert aus dem npm-Paket (`dist/index.umd.js`), mit ihrer MIT-Lizenz |
 | `vokabeln.js` | die Wörter und die Abschnitte der Topics |
 | `vokabeln-jlpt.js` | der Wortschatz der Stufen N5 und N4 |
 | `bilder.js` | Bildwörter mit Beispielsätzen |

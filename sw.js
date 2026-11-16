@@ -1,11 +1,12 @@
 /* Service Worker: hält die App offline verfügbar.
    Bei jeder Änderung an den Dateien die VERSION erhöhen. */
-var VERSION = "kotoba-v24";
+var VERSION = "kotoba-v25";
 var DATEIEN = [
   "./",
   "./index.html",
   "./app.css",
   "./app.js",
+  "./ts-fsrs/index.umd.js",
   "./plan.js",
   "./vokabeln.js",
   "./vokabeln-jlpt.js",

@@ -100,8 +100,8 @@ function einstSichern(){ lege(K_EINST, einst); }
    So bleibt die Sicherungskopie klein genug zum Kopieren.            */
 var VORGABE = { stufe: 0, faellig: 0, fehler: 0 };
 
-/* Nimmt auch Stände aus früheren Fassungen (nur stufe, faellig, fehler) und
-   ergänzt Abstand und Faktor; Einzelheiten in plan.js. */
+/* Nimmt auch Stände aus früheren Fassungen und ergänzt, was fehlt;
+   Einzelheiten in plan.js. */
 function normalisiere(d){
   Object.keys(d).forEach(function(id){
     if(!PLAN.normalisieren(d[id])) delete d[id];
@@ -540,9 +540,10 @@ function istFrueh(k){
   return !PLAN.istNeu(k) && k.lern === undefined && k.faellig > Date.now();
 }
 
+/* Übernimmt alle Felder, die plan.js zurückgibt (Liste dort). */
 function uebernehmen(k, n){
-  ["stufe", "faellig", "fehler", "ivl", "faktor"].forEach(function(f){ k[f] = n[f]; });
-  if(n.lern === undefined) delete k.lern; else k.lern = n.lern;
+  Object.keys(n).forEach(function(f){ k[f] = n[f]; });
+  if(n.lern === undefined) delete k.lern;
 }
 
 function bewerte(note){
