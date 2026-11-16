@@ -3,7 +3,7 @@
 
    Gerechnet wird nicht hier, sondern in ts-fsrs 5.4.2 von Open Spaced
    Repetition (MIT-Lizenz, unverändert in ts-fsrs/index.umd.js). Die Bibliothek
-   rechnet mit FSRS-6, demselben Verfahren, das Anki benutzt. Diese Datei
+   rechnet mit FSRS-6 (Free Spaced Repetition Scheduler). Diese Datei
    übersetzt nur zwischen dem Lernstand der App und den Karten der Bibliothek;
    app.js ruft sie auf wie bisher.
 
@@ -37,7 +37,7 @@ if(!L) return;              // Bibliothek fehlt: app.js lädt dann einmal neu
 
 var MIN = 60000, TAG = 86400000;
 
-/* Einstellungen der Bibliothek. Alle Werte sind ihre Vorgaben (wie in Anki),
+/* Einstellungen der Bibliothek. Alle Werte sind ihre Vorgaben,
    nur die Streuung ist eingeschaltet, damit Wörter, die am selben Tag gelernt
    wurden, nicht alle am selben Tag wiederkommen. */
 var EINSTELLUNG = {
@@ -183,7 +183,7 @@ function dauer(e){
 
 /* ---------- Lernstand einlesen ----------
    Nimmt auch Stände aus früheren Fassungen (Treppe: nur stufe, faellig, fehler;
-   Anki-Nachbau: dazu ivl, faktor, lern) und ergänzt, was fehlt.
+   Plan vor FSRS: dazu ivl, faktor, lern) und ergänzt, was fehlt.
    Rückgabe false: der Eintrag sagt nichts aus. */
 function zahl(x){ return typeof x === "number" && isFinite(x) && x >= 0; }
 function normalisieren(k){
