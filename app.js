@@ -74,10 +74,14 @@ function retten(schluessel, roh){
   }catch(e){ /* nicht gesichert, siehe unten */ }
   gesperrt[schluessel] = roh;
 }
-function lege(schluessel, wert){
+function lege(schluessel, wert){ return legeText(schluessel, JSON.stringify(wert)); }
+function legeText(schluessel, text){
   if(gesperrt[schluessel] !== undefined) return false;   // unlesbar und nicht gesichert: nicht überschreiben
-  try{ localStorage.setItem(schluessel, JSON.stringify(wert)); return true; }
+  try{ localStorage.setItem(schluessel, text); return true; }
   catch(e){ speicherOk = false; return false; }
+}
+function rohLesen(schluessel){
+  try{ return localStorage.getItem(schluessel); }catch(e){ return null; }
 }
 function gefuellt(schluessel){
   try{ return !!localStorage.getItem(schluessel); }catch(e){ return false; }
@@ -104,6 +108,9 @@ function holeMitUebernahme(schluessel, frueher){
 
 var stand = holeMitUebernahme(K_STAND, K_FRUEHER);
 normalisiere(stand);
+/* Mehrere Tabs: Text im Speicher, wie er zuletzt gelesen oder geschrieben wurde.
+   Weicht er ab, hat ein anderer Tab geantwortet (siehe standAuffrischen). */
+var standRoh = rohLesen(K_STAND);
 
 var einst = holeMitUebernahme(K_EINST, K_EINST_FRUEHER);
 if(einst.thema    === undefined) einst.thema    = "auto";
@@ -119,7 +126,26 @@ if(einst.listeStufe === undefined) einst.listeStufe = 0;
 if(einst.neuProTag  === undefined) einst.neuProTag  = 15;
 if(["kana", "de", "kanji"].indexOf(einst.richtung) < 0) einst.richtung = "kana";
 
-function standSichern(){ return lege(K_STAND, stand); }
+function standSichern(){
+  var text = JSON.stringify(stand);
+  if(!legeText(K_STAND, text)) return false;
+  standRoh = text;
+  return true;
+}
+/* Sind zwei Tabs offen, hält jeder seinen eigenen Lernstand. Damit keiner die
+   Antworten des anderen überschreibt, liest die App vor jeder Antwort den
+   gespeicherten Stand neu ein, sobald ein anderer Tab ihn geändert hat, und
+   ändert dann nur das eine Wort. Rückgabe: true, wenn sich etwas geändert hat. */
+function standAuffrischen(){
+  var roh = rohLesen(K_STAND);
+  if(roh === null || roh === standRoh) return false;
+  var d;
+  try{ d = JSON.parse(roh); }catch(e){ return false; }
+  if(!d || typeof d !== "object" || Array.isArray(d)) return false;
+  stand = normalisiere(d);
+  standRoh = roh;
+  return true;
+}
 function einstSichern(){ lege(K_EINST, einst); }
 
 /* ---------- Kartenzustand ----------
@@ -166,6 +192,13 @@ function neuHeute(){
   var t = PLAN.tagesbeginn(Date.now());
   if(!einst.neuHeute || einst.neuHeute.tag !== t) einst.neuHeute = { tag: t, n: 0 };
   return einst.neuHeute.n;
+}
+/* Tageszähler eines anderen Tabs übernehmen: Für heute gilt der größere Wert. */
+function neuHeuteAuffrischen(){
+  var e = hole(K_EINST, null);
+  if(!e || !e.neuHeute || typeof e.neuHeute.n !== "number") return;
+  neuHeute();
+  if(e.neuHeute.tag === einst.neuHeute.tag && e.neuHeute.n > einst.neuHeute.n) einst.neuHeute.n = e.neuHeute.n;
 }
 function neuFrei(){
   return einst.neuProTag > 0 ? Math.max(0, einst.neuProTag - neuHeute()) : Infinity;
@@ -593,6 +626,7 @@ function uebernehmen(k, n){
 
 function bewerte(note){
   if(!schlange.length || !umgedreht) return;
+  standAuffrischen();                          // hat ein anderer Tab inzwischen geantwortet?
   var v = schlange[0], vorher = karte(v.id);
   var warNeu = PLAN.istNeu(vorher);
   var frueh = istFrueh(vorher);
@@ -614,7 +648,7 @@ function bewerte(note){
     var k = karteSchreiben(v.id);
     uebernehmen(k, s.k);
     minuten = s.minuten;
-    if(warNeu){ neuHeute(); einst.neuHeute.n += 1; einstSichern(); }
+    if(warNeu){ neuHeuteAuffrischen(); einst.neuHeute.n += 1; einstSichern(); }
   }
   if(minuten > 0) nachruecken(v, minuten);     // lernt noch: kommt in dieser Runde wieder
   else getan += 1;
@@ -1074,6 +1108,7 @@ function standErsetzen(neu, fertig){
   melde(fertig);
 }
 function standLaden(){
+  standAuffrischen();                          // mit dem neuesten Stand vergleichen
   var neu;
   try{ neu = JSON.parse($("#exportFeld").value.trim()); }catch(e){ neu = null; }
   if(!neu || typeof neu !== "object" || Array.isArray(neu)){
@@ -1259,12 +1294,27 @@ function verdrahten(){
   // Tageswechsel oder Rückkehr in die App: fällige Karten neu bestimmen
   document.addEventListener("visibilitychange", function(){
     if(document.visibilityState !== "visible") return;
+    standAuffrischen();                        // ein anderer Tab hat vielleicht geantwortet
+    neuHeuteAuffrischen();
     kopfAktualisieren();
     zeichneFilter();
     if(aktiverBereich === "lernen" && !schlange.length && !freiesUeben){
       schlangeBauen(false);
       zeichneLernen();
     }
+  });
+
+  // Ein anderer Tab hat gespeichert: Stand und Tageszähler übernehmen und die
+  // Anzeige nachziehen. Die Knöpfe der offenen Karte zeigen danach, was eine
+  // Antwort auf dem neuen Stand bewirkt.
+  window.addEventListener("storage", function(e){
+    var geaendert = false;
+    if(e.key === K_STAND || e.key === null) geaendert = standAuffrischen() || geaendert;
+    if(e.key === K_EINST || e.key === null){ neuHeuteAuffrischen(); geaendert = true; }
+    if(!geaendert) return;
+    kopfAktualisieren();
+    zeichneFilter();
+    if(aktiverBereich === "lernen" && umgedreht && schlange.length) zeichneSteuerung();
   });
 }
 
