@@ -43,17 +43,44 @@ function tage(n){ return n === 1 ? "1 Tag" : n + " Tage"; }
 /* ---------- Speicher ---------- */
 var speicherOk = true;
 
+/* Unlesbare Inhalte werden nie überschrieben. Sie kommen zuerst unverändert in
+   eine Kopie unter eigenem Namen (etwa "kotoba-v2-unlesbar-1763..."). Gelingt
+   das nicht, schreibt die App in dieser Sitzung nichts unter diesen Namen. */
+var RETTUNG  = "-unlesbar-";
+var gesperrt = {};            // Schlüssel -> unlesbarer Text, der nicht gesichert werden konnte
+
 function hole(schluessel, ersatz){
+  var roh;
+  try{ roh = localStorage.getItem(schluessel); }
+  catch(e){ speicherOk = false; return ersatz; }
+  if(!roh) return ersatz;
   try{
-    var roh = localStorage.getItem(schluessel);
-    if(!roh) return ersatz;
     var d = JSON.parse(roh);
-    return (d && typeof d === "object" && !Array.isArray(d)) ? d : ersatz;
-  }catch(e){ speicherOk = false; return ersatz; }
+    if(d && typeof d === "object" && !Array.isArray(d)) return d;
+  }catch(e){ /* unlesbar, siehe unten */ }
+  retten(schluessel, roh);
+  return ersatz;
+}
+function retten(schluessel, roh){
+  try{
+    // Liegt derselbe Text schon gesichert vor, genügt das.
+    for(var i = 0; i < localStorage.length; i++){
+      var n = localStorage.key(i);
+      if(n.indexOf(schluessel + RETTUNG) === 0 && localStorage.getItem(n) === roh) return;
+    }
+    var kopie = schluessel + RETTUNG + Date.now();
+    localStorage.setItem(kopie, roh);
+    if(localStorage.getItem(kopie) === roh) return;
+  }catch(e){ /* nicht gesichert, siehe unten */ }
+  gesperrt[schluessel] = roh;
 }
 function lege(schluessel, wert){
+  if(gesperrt[schluessel] !== undefined) return;     // unlesbar und nicht gesichert: nicht überschreiben
   try{ localStorage.setItem(schluessel, JSON.stringify(wert)); }
   catch(e){ speicherOk = false; }
+}
+function gefuellt(schluessel){
+  try{ return !!localStorage.getItem(schluessel); }catch(e){ return false; }
 }
 function entferne(schluessel){
   try{ localStorage.removeItem(schluessel); }catch(e){ /* egal */ }
@@ -64,6 +91,7 @@ function entferne(schluessel){
 function holeMitUebernahme(schluessel, frueher){
   var d = hole(schluessel, null);
   if(d) return d;
+  if(gefuellt(schluessel)) return {};   // vorhanden, aber unlesbar: nichts Älteres darüberlegen
   for(var i = 0; i < frueher.length; i++){
     var altD = hole(frueher[i], null);
     if(!altD || !Object.keys(altD).length) continue;
@@ -1168,6 +1196,67 @@ function verdrahten(){
   });
 }
 
+/* ---------- Gesicherte unlesbare Daten ----------
+   Solange es eine Kopie unlesbarer Daten gibt oder Daten nicht gesichert
+   werden konnten, steht über der Karte ein Hinweis. Von dort lässt sich der
+   alte Text kopieren und die Kopie, wenn sie nicht mehr gebraucht wird,
+   verwerfen. */
+function gerettete(){
+  var aus = [];
+  try{
+    for(var i = 0; i < localStorage.length; i++){
+      var n = localStorage.key(i);
+      if(n.indexOf(RETTUNG) > 0) aus.push(n);
+    }
+  }catch(e){ /* dann eben keine */ }
+  return aus.sort();
+}
+function textKopieren(text, fertig){
+  function alt(){
+    var f = document.createElement("textarea");
+    f.value = text; f.setAttribute("readonly", "");
+    f.style.position = "fixed"; f.style.opacity = "0";
+    document.body.appendChild(f);
+    f.focus(); f.setSelectionRange(0, text.length);
+    var ok = false;
+    try{ ok = document.execCommand("copy"); }catch(e){ /* unten */ }
+    document.body.removeChild(f);
+    melde(ok ? fertig : "Kopieren ging nicht");
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ melde(fertig); }, alt);
+  }else alt();
+}
+function zeigeRettung(){
+  var alt = $("#rettung");
+  if(alt) alt.parentNode.removeChild(alt);
+  var kopien = gerettete(), offen = Object.keys(gesperrt);
+  if(!kopien.length && !offen.length) return;
+  var text = offen.length
+    ? "Gespeicherte Daten sind beschädigt und konnten nicht gesichert werden. Damit nichts "
+      + "verloren geht, speichert die App in dieser Sitzung nichts darüber. Kopiere den alten "
+      + "Text und bewahre ihn auf."
+    : "Gespeicherte Daten waren beschädigt und ließen sich nicht lesen. Sie sind unverändert "
+      + "gesichert, die App hat neu begonnen. Kopiere den gesicherten Text, um ihn aufzubewahren.";
+  $("#kartenbereich").insertAdjacentHTML("beforebegin",
+      '<div class="info" id="rettung">' + text
+    + '<button class="knopf" id="rettungKopieren" style="margin:10px 0 0">Gesicherten Text kopieren</button>'
+    + (offen.length ? "" : '<button class="knopf warn" id="rettungVerwerfen" style="margin:8px 0 0">Kopie verwerfen</button>')
+    + "</div>");
+  $("#rettungKopieren").addEventListener("click", function(){
+    var texte = offen.map(function(s){ return gesperrt[s]; });
+    kopien.forEach(function(n){ try{ texte.push(localStorage.getItem(n)); }catch(e){ /* weiter */ } });
+    textKopieren(texte.join("\n\n"), "Gesicherter Text kopiert");
+  });
+  var weg = $("#rettungVerwerfen");
+  if(weg) weg.addEventListener("click", function(){
+    if(!confirm("Die gesicherte Kopie der beschädigten Daten endgültig löschen? "
+      + "Kopiere sie vorher, falls du sie noch brauchst.")) return;
+    kopien.forEach(entferne);
+    zeigeRettung();
+  });
+}
+
 /* ---------- Selbstheilung bei gemischten Fassungen ----------
    Der Service Worker holt jede Datei einzeln. Uebernimmt eine neue Fassung
    mitten in einer geladenen Seite, koennen index.html und app.js aus
@@ -1237,6 +1326,9 @@ function start(){
       '<div class="info">Dieser Browser speichert gerade nichts dauerhaft. Der Fortschritt gilt '
       + "nur für diese Sitzung.</div>");
   }
+  zeigeRettung();
+  // dojo.js liest seinen Stand erst nach diesem Start; danach noch einmal nachsehen.
+  window.addEventListener("load", zeigeRettung);
 
   if("serviceWorker" in navigator){
     // Uebernimmt ein neuer Service Worker, passt das geladene Skript
