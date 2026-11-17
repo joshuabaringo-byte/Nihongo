@@ -332,6 +332,73 @@ function server(){
     await ctx.close();
   });
 
+  /* ================================================================ C4 */
+  if(will("c4")) await abschnitt("c4", async () => {
+    console.log("\nC4 Veraltete gespeicherte Auswahl");
+    const ctx = await profil(), page = await seite(ctx);
+    const lage = () => page.evaluate(() => ({
+      gestartet: !/konnte nicht starten/.test(document.body.innerText),
+      auswahl: document.querySelector("#filterName").textContent,
+      karte: !!document.querySelector("#umdrehen") }));
+    for(const [name, filter] of [["Abschnitt 99-9", { art: "ab", wert: "99-9" }], ["Topic 99", { art: "topic", wert: 99 }],
+                                 ["Stufe 3", { art: "stufe", wert: 3 }], ["unbekannte Art", { art: "xyz", wert: 1 }],
+                                 ["Text statt Objekt", "ab"], ["null", null]]){
+      await setze(page, { "kotoba-einst": { filter: filter } });
+      const l = await lage();
+      pruefe("Filter " + name + ": App startet mit \"Alle Wörter\"", l.gestartet && l.auswahl === "Alle Wörter" && l.karte && page.fehler.length === 0,
+        JSON.stringify(l) + " " + page.fehler.join(" | "));
+    }
+    await setze(page, { "kotoba-einst": { filter: { art: "ab", wert: "8-2" } } });
+    let l = await lage();
+    pruefe("gültiger Filter bleibt erhalten (" + l.auswahl + ")", l.gestartet && /^N5 2/.test(l.auswahl), l.auswahl);
+
+    // Dojo: ungültige gespeicherte Auswahl, dann jede Kachel öffnen
+    await setze(page, { "kotoba-einst": EINST, "kotoba-dojo": { wahl: { satz: "g:gibtsnicht", richtung: "xy", zart: "xyz", schrift: "abc", kreis: { 5: "zzz", 4: 7 } } } });
+    await page.click('.leiste button[data-ziel="dojo"]'); await page.waitForTimeout(150);
+    const offen = [];
+    for(const [ziel, st] of [["bild"], ["paare"], ["zahl"], ["buch"], ["jlpt", 5], ["jlpt", 4], ["texte"]]){
+      const sel = '#dojoInhalt .dkachel[data-ziel="' + ziel + '"]' + (st ? '[data-stufe="' + st + '"]' : "");
+      if(!(await page.locator(sel).count())){ await page.click('.leiste button[data-ziel="dojo"]'); await page.waitForTimeout(100); }
+      await page.click(sel); await page.waitForTimeout(150);
+      const inhalt = await page.evaluate(() => document.querySelector("#dojoInhalt").innerText.trim().length);
+      offen.push(ziel + (st || "") + (inhalt ? "" : " (leer)"));
+      const z = page.locator("#dojoInhalt .dzurueck").first();
+      if(await z.count()) await z.click(); else await page.click('.leiste button[data-ziel="dojo"]');
+      await page.waitForTimeout(100);
+    }
+    pruefe("Dojo mit ungültiger Auswahl: alle 7 Kacheln öffnen ohne Fehler (" + offen.join(", ") + ")",
+      page.fehler.length === 0 && !offen.some(o => /leer/.test(o)), page.fehler.join(" | "));
+    const wahl = await page.evaluate(() => JSON.parse(localStorage.getItem("kotoba-dojo") || "{}").wahl || null);
+    pruefe("Dojo nutzt die Vorgaben statt der ungültigen Werte", !wahl || (wahl.zart === "mix" && wahl.richtung === "bw" && wahl.schrift === "furi"), JSON.stringify(wahl));
+    await ctx.close();
+  });
+
+  /* ================================================================ C5 */
+  if(will("c5")) await abschnitt("c5", async () => {
+    console.log("\nC5 Speichern scheitert mitten in der Sitzung");
+    const ctx = await profil(), page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    await page.evaluate(() => {
+      const s = Storage.prototype.setItem; window.__sperre = true;
+      Storage.prototype.setItem = function(){ if(window.__sperre) throw new DOMException("voll", "QuotaExceededError"); return s.apply(this, arguments); };
+    });
+    const warnung = () => page.evaluate(() => { const w = document.querySelector("#speicherWarnung"); return w && w.offsetParent ? w.innerText : ""; });
+    await page.click("#umdrehen"); await page.click(".tap.leicht"); await page.waitForTimeout(80);
+    pruefe("nach der ersten gescheiterten Antwort: Warnung sofort sichtbar", /Speichern geht gerade nicht/.test(await warnung()), await warnung());
+    for(let i = 0; i < 2; i++){ await page.click("#umdrehen"); await page.click(".tap.leicht"); }
+    await page.waitForTimeout(80);
+    pruefe("gespeichert ist tatsächlich nichts", Object.keys(await stand(page)).length === 0);
+    await page.click("#speicherWarnungKopieren"); await page.waitForTimeout(150);
+    let kopie = {}; try{ kopie = JSON.parse(await page.evaluate(() => navigator.clipboard.readText())); }catch(e){ /* bleibt leer */ }
+    pruefe("\"Lernstand kopieren\" enthält alle 3 Antworten", Object.keys(kopie).length === 3, Object.keys(kopie).length);
+    await page.evaluate(() => { window.__sperre = false; });
+    await page.click("#umdrehen"); await page.click(".tap.leicht"); await page.waitForTimeout(100);
+    pruefe("Speichern geht wieder: alle 4 Antworten gespeichert", Object.keys(await stand(page)).length === 4, Object.keys(await stand(page)).length);
+    pruefe("und die Warnung ist verschwunden", (await warnung()) === "");
+    pruefe("C5 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+  });
+
   await browser.close(); srv.close();
   console.log(fehler ? "\n" + fehler + " Prüfung(en) FEHLGESCHLAGEN" : "\nalle Prüfungen bestanden");
   process.exit(fehler ? 1 : 0);

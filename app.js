@@ -75,10 +75,40 @@ function retten(schluessel, roh){
   gesperrt[schluessel] = roh;
 }
 function lege(schluessel, wert){ return legeText(schluessel, JSON.stringify(wert)); }
+var nichtGespeichert = {};    // Schlüssel, deren letzter Speicherversuch gescheitert ist
 function legeText(schluessel, text){
   if(gesperrt[schluessel] !== undefined) return false;   // unlesbar und nicht gesichert: nicht überschreiben
-  try{ localStorage.setItem(schluessel, text); return true; }
-  catch(e){ speicherOk = false; return false; }
+  try{ localStorage.setItem(schluessel, text); }
+  catch(e){
+    speicherOk = false;
+    nichtGespeichert[schluessel] = true;
+    zeigeSpeicherWarnung();
+    return false;
+  }
+  if(nichtGespeichert[schluessel]){ delete nichtGespeichert[schluessel]; zeigeSpeicherWarnung(); }
+  return true;
+}
+/* Scheitert ein Speicherversuch (Speicher voll oder gesperrt), steht sofort ein
+   Hinweis über der Karte. Die Antworten bleiben im Speicher der Seite; sobald
+   das Speichern wieder klappt, kommen sie alle hinein und der Hinweis geht. */
+function zeigeSpeicherWarnung(){
+  var alt = document.getElementById("speicherWarnung");
+  if(!Object.keys(nichtGespeichert).length){
+    if(alt) alt.parentNode.removeChild(alt);
+    return;
+  }
+  var ziel = document.getElementById("kartenbereich");
+  if(alt || !ziel) return;
+  ziel.insertAdjacentHTML("beforebegin",
+      '<div class="info" id="speicherWarnung">Speichern geht gerade nicht (Speicher voll oder '
+    + "gesperrt). Deine Antworten dieser Sitzung sind nur vorläufig da. Kopiere den Lernstand, "
+    + "um sie zu sichern."
+    + '<button class="knopf" id="speicherWarnungKopieren" style="margin:10px 0 0">Lernstand kopieren</button>'
+    + "</div>");
+  document.getElementById("speicherWarnungKopieren").addEventListener("click", function(){
+    textKopieren(JSON.stringify(stand), "Lernstand kopiert");
+  });
+  melde("Nicht gespeichert – Speicher voll oder gesperrt");
 }
 function rohLesen(schluessel){
   try{ return localStorage.getItem(schluessel); }catch(e){ return null; }
@@ -1429,8 +1459,10 @@ function start(){
     anpassUhr = setTimeout(karteAnpassen, 120);
   });
 
-  // gespeicherter Filter kann auf einen leeren Problemfilter zeigen
-  if(einst.filter.art === "problem" && !V.filter(istProblem).length){
+  // Ein gespeicherter Filter gilt nur, wenn es ihn in der Auswahl gibt: Abschnitte
+  // können umbenannt werden, und der Problemfilter kann inzwischen leer sein.
+  var f0 = einst.filter;
+  if(!f0 || typeof f0 !== "object" || !filterListe().some(function(f){ return gleicherFilter(f, f0); })){
     einst.filter = { art: "alle", wert: 0 };
   }
 
@@ -1444,7 +1476,7 @@ function start(){
   zeichneLernen();
   kopfAktualisieren();
 
-  if(!speicherOk){
+  if(!speicherOk && !$("#speicherWarnung")){
     $("#kartenbereich").insertAdjacentHTML("beforebegin",
       '<div class="info">Dieser Browser speichert gerade nichts dauerhaft. Der Fortschritt gilt '
       + "nur für diese Sitzung.</div>");
