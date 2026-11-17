@@ -25,6 +25,8 @@ jobs:
         run: node tests/plan.test.js
       - name: Kennungen (nur Node)
         run: node tests/kennungen.test.js
+      - name: Antwort-Historie (nur Node)
+        run: node tests/verlauf.test.js
       - name: Playwright mit Chromium einrichten
         run: |
           npm install --no-save --no-package-lock playwright@1.63.0

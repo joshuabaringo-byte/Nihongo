@@ -5,9 +5,8 @@ Die App ist heute privat und läuft nur im Browser, ohne Server. Später soll si
 Benutzerkonten laufen. Dieses Dokument beschreibt die Zielarchitektur, damit die
 Datenstruktur schon jetzt nicht von einem einzelnen Benutzer ausgeht.
 
-Stand: Paket 3a ist umgesetzt (Kennungen, Gerät, Profile). Paket 3b
-(Lernereignisse) und Paket 4 (Supabase) sind geplant; was dazu hier steht, ist
-Entwurf.
+Stand: Paket 3a (Kennungen, Gerät, Profile) und Paket 3b (Lernereignisse) sind
+umgesetzt. Paket 4 (Supabase) ist geplant; was dazu hier steht, ist Entwurf.
 
 ## 1. Schichten
 
@@ -59,7 +58,8 @@ eines anderen, auch nicht die gesicherten Kopien unlesbarer Daten.
 | Einstellungen | `kotoba-einst` | `kotoba:<p>:einst` |
 | Dojo | `kotoba-dojo` | `kotoba:<p>:dojo` |
 | aufbewahrter Stand | `kotoba-v2-vorher` | `kotoba:<p>:vorher` |
-| Lernereignisse (3b) | `kotoba-ereignisse` | `kotoba:<p>:ereignisse` |
+| Lernereignisse: Verzeichnis | `kotoba-ereignisse` | `kotoba:<p>:ereignisse` |
+| Lernereignisse: Teile | `kotoba-ereignisse-<n>` | `kotoba:<p>:ereignisse-<n>` |
 | unlesbare Daten, gesichert | `<Name>-unlesbar-<Zeit>` | `kotoba:<p>:<name>-unlesbar-<Zeit>` |
 
 - Das Gast-Profil nutzt die bisherigen Namen; es wurde nichts umkopiert.
@@ -68,7 +68,7 @@ eines anderen, auch nicht die gesicherten Kopien unlesbarer Daten.
 - Später ist das Profil eines angemeldeten Benutzers seine Supabase-`user_id`.
 - Die App bleibt ohne Konto nutzbar; dann arbeitet sie im Gast-Profil, nur lokal.
 
-## 4. Lernereignisse (Paket 3b, Entwurf)
+## 4. Lernereignisse (umgesetzt in 3b)
 
 | Feld | Bedeutung |
 |---|---|
@@ -94,11 +94,22 @@ eines anderen, auch nicht die gesicherten Kopien unlesbarer Daten.
   übernommen. Eine Historie der Antworten davor gibt es nicht.
 - **Laden einer Sicherung, Zurücksetzen, Zurückholen** erzeugen `uebernahme`-Ereignisse.
   So übertragen sie sich auf andere Geräte; spätere Antworten von dort setzen darauf auf.
-- **Tageszähler für neue Wörter:** aus den Ereignissen gezählt, nicht gespeichert.
-- **Speicherplatz:** etwa 60 Bytes je Ereignis. Der Speicher im Browser fasst auf dem
-  iPhone etwa 5 MB. Ohne Server fasst die App ab einer Grenze (vorgeschlagen 2 MB)
-  ältere Ereignisse zu einer `uebernahme` je Wort zusammen. Mit Supabase liegt die
+- **Tageszähler für neue Wörter:** Jeder Stand hält den Lerntag seiner ersten Antwort
+  fest (`erst`); gezählt werden Wörter mit `erst` = heute. Das ergibt sich aus der
+  Historie und stimmt über Tabs und Geräte hinweg.
+- **Rückgängig:** Ein Schritt, bis zum Neuladen; die App hält ein `widerruf`-Ereignis fest.
+- **Üben vor dem Termin,** das den Plan nicht ändert („unverändert“), wird nicht
+  festgehalten.
+- **Speicherung** (`app.js`): je Profil in Teilen zu höchstens 500 Ereignissen, gepackt
+  (Gerät und Plan stehen einmal je Teil); ein Verzeichnis nennt die Teile und ihre Größe.
+  Beim Antworten wird nur der jüngste Teil frisch gelesen und geschrieben, das Ereignis vor
+  dem Stand. Scheitert das Speichern, bleibt es vorgemerkt.
+- **Speicherplatz:** etwa 100 Zeichen je Antwort. Der Speicher im Browser fasst auf dem
+  iPhone etwa 5 MB. Über 2 MB fasst die App die ältesten drei Viertel zu einer
+  `uebernahme` je Wort zusammen; der Stand bleibt exakt gleich. Mit Supabase liegt die
   vollständige Historie auf dem Server, lokal bleibt nur, was noch nicht hochgeladen ist.
+- **Sicherung Format 3** enthält die Historie; beim Laden wird sie übernommen (doppelte
+  Kennungen einmal) und der geladene Stand je Wort als `uebernahme` festgehalten.
 
 ## 5. Einstellungen: je Benutzer oder je Gerät
 
@@ -223,10 +234,10 @@ alter table public.dojo_stand    enable row level security;
 
 | Entscheidung | Aufwand jetzt | Kosten später, wenn wir es weglassen |
 |---|---|---|
-| Antwort-Historie | mittel (3b) | hoch: Für alle bis dahin gegebenen Antworten fehlt die Historie dauerhaft; Abgleich nur über ganze Stände, mit Konflikten |
+| Antwort-Historie | mittel (3b, erledigt) | hoch: Für alle bis dahin gegebenen Antworten fehlt die Historie dauerhaft; Abgleich nur über ganze Stände, mit Konflikten |
 | Zuordnung zu Benutzern (Profile, `user_id`, RLS) | gering (3a erledigt) | hoch: Liegen Daten mehrerer Benutzer erst gemischt vor, lassen sie sich nicht mehr eindeutig zuordnen |
 | Stabile Kennungen | gering (3a erledigt) | mittel bis hoch: jede Umbenennung auf dem Server für alle Benutzer nachziehen |
-| Lerntag im Ereignis | gering (3b) | mittel: Ereignisse ohne Lerntag rechnen in anderen Zeitzonen abweichend |
+| Lerntag im Ereignis | gering (3b, erledigt) | mittel: Ereignisse ohne Lerntag rechnen in anderen Zeitzonen abweichend |
 | Einstellungen nach Gerät und Benutzer trennen | gering (Liste oben, Umsetzung Paket 4) | gering bis mittel |
 | localStorage statt IndexedDB | – | mittel: asynchroner Speicher, Umzug der Daten auf jedem Gerät; erst nötig bei sehr großen Historien oder vielen Profilen auf einem Gerät |
 | Vokabeln in die Datenbank (eigene Listen, Inhaltsverwaltung) | hoch, unnötig | mittel bis hoch; Lernstände bleiben dank stabiler Kennungen unberührt |
