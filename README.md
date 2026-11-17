@@ -38,10 +38,11 @@ gespeichert. In Safari selbst löscht iOS ihn nach etwa sieben Tagen ohne Besuch
 | Handgriff | Wirkung |
 |---|---|
 | Auf die Karte tippen | Antwort zeigen |
-| **nochmal** | vergessen: in 10 Minuten wieder, der Abstand schrumpft auf etwa ein Drittel, zählt als Fehler |
-| **schwer** | gewusst, aber mühsam: der Abstand wächst nur wenig, das Wort gilt künftig als schwerer |
-| **sitzt** | gewusst: der Abstand wächst um den Faktor des Wortes (anfangs 2,5) |
-| **leicht** | spielend gewusst: der Abstand wächst stärker, das Wort gilt künftig als leichter |
+| **nochmal** | vergessen: in 10 Minuten wieder, zählt als Fehler, der nächste Abstand wird kürzer |
+| **schwer** | gewusst, aber mühsam: kürzerer Abstand, das Wort gilt künftig als schwerer |
+| **sitzt** | gewusst: der Abstand wächst, so wie FSRS ihn für das Wort berechnet |
+| **leicht** | spielend gewusst: längerer Abstand, das Wort gilt künftig als leichter |
+| **↶ Rückgängig** unter *Antwort zeigen* | die letzte Antwort zurücknehmen; das Wort kommt wieder (ein Schritt, bis zum Neuladen) |
 | Nach links wischen | wie nochmal |
 | Nach rechts wischen | wie sitzt |
 | Auf ein Wort in den Listen tippen | Aussprache anhören |
@@ -176,6 +177,14 @@ lernt man an einem Tag Hunderte, und alle kommen am nächsten Tag zusammen wiede
 Limit zählt ab dem Tageswechsel; mit *Trotzdem weiterüben* lässt es sich bewusst
 überschreiten.
 
+**Antwort-Historie:** Jede Antwort wird mit Zeit, Lerntag und Bewertung festgehalten,
+je Profil getrennt. Aus der Historie lässt sich der Stand jedes Wortes genau nachrechnen;
+sie ist die Grundlage für die spätere Synchronisierung zwischen Geräten (siehe
+`ARCHITEKTUR.md`). Sie beginnt mit diesem Update: Was du vorher gelernt hast, ist als
+Ausgangsstand festgehalten. Üben vor dem Termin, das den Plan nicht ändert, wird nicht
+festgehalten. Wird die Historie größer als 2 MB, fasst die App die ältesten Antworten zu
+einem Stand je Wort zusammen; der Lernstand bleibt dabei gleich.
+
 **Reihenfolge im Durchgang:** erst Lernkarten, dann Wiederholungen (das am längsten
 Überfällige zuerst, innerhalb eines Tages gemischt), dann Neues. Unter *Stand → Nächste
 7 Tage* siehst du, wie viel in den kommenden Tagen fällig wird.
@@ -198,7 +207,7 @@ Unter dem Zahnrad liegt **Als Datei sichern**. Auf dem iPhone öffnet sich das
 Teilen-Menü; mit *In Dateien sichern*, am besten in iCloud Drive, liegt die Sicherung
 außerhalb der App und übersteht auch einen Gerätewechsel. Wo Teilen nicht geht, wird
 die Datei heruntergeladen. Eine Sicherung enthält Lernstand, Einstellungen und
-Dojo-Fortschritt. Zurück geht es mit **Aus Datei laden**.
+Dojo-Fortschritt, dazu die Antwort-Historie. Zurück geht es mit **Aus Datei laden**.
 
 Dieselbe Sicherung gibt es als Text: **Stand kopieren** legt sie in die Zwischenablage,
 zum Zurückholen den Text in das Feld einfügen und **Eingefügten Stand laden** tippen.
@@ -232,6 +241,7 @@ Einstellungen und Dojo gilt weiter: Der Tab, der zuletzt speichert, gewinnt.
 
     node tests/plan.test.js       # Wiederholungsplan, braucht nur Node
     node tests/kennungen.test.js  # keine Kennung geht verloren, braucht nur Node
+    node tests/verlauf.test.js    # Antwort-Historie: Nachrechnen, Geräte, Zeitzonen, braucht nur Node
     node tests/app.test.js        # die App im Browser, braucht Playwright mit Chromium
 
 `app.test.js` startet einen eigenen kleinen Webserver und arbeitet in leeren
@@ -377,6 +387,7 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `app.css` | Gestaltung „Papier", hell und dunkel |
 | `app.js` | Karteikarten, Durchgänge, Speicherung |
 | `plan.js` | der Wiederholungsplan: verbindet die App mit ts-fsrs |
+| `verlauf.js` | die Antwort-Historie: Lernereignisse, Nachrechnen, Vereinigen, Zusammenfassen |
 | `ts-fsrs/` | die Bibliothek ts-fsrs 5.4.2, unverändert aus dem npm-Paket (`dist/index.umd.js`), mit ihrer MIT-Lizenz |
 | `vokabeln.js` | die Wörter und die Abschnitte der Topics |
 | `vokabeln-jlpt.js` | der Wortschatz der Stufen N5 und N4 |
