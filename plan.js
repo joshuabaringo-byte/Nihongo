@@ -24,6 +24,8 @@
      st      1 lernt, 2 wiederholt, 3 lernt nach einem Fehler   (state)
      wdh     Zahl der Antworten                                 (reps)
      zuletzt Zeitpunkt der letzten Antwort                      (last_review)
+     tag     Lerntag der letzten Antwort (siehe lerntag)
+     erst    Lerntag der ersten Antwort; zählt die neuen Wörter des Tages
    Wörter aus der Zeit vor FSRS haben noch kein s und d. Die Bibliothek setzt
    beides bei der nächsten Antwort selbst, als wäre es die erste. Ihr Termin
    bleibt bis dahin, wie er war; ein altes Feld faktor bleibt stehen, wird
@@ -108,11 +110,24 @@ function zustandVon(k){
   return k.ivl > 0 ? L.State.Relearning : L.State.Learning;
 }
 
-/* Tage seit der letzten Antwort, gezählt wie in der App: ab dem Tageswechsel
-   um vier Uhr Ortszeit. Liegt die letzte Antwort in der Zukunft (Uhr
-   verstellt), zählt das als 0 Tage; ebenso ein unbrauchbarer Zeitpunkt. */
-function tageSeit(zuletzt, jetzt){
-  var t = Math.round((tagesbeginn(jetzt) - tagesbeginn(zuletzt)) / TAG);
+/* Lerntag: der Tag nach dem 4-Uhr-Wechsel als ganze Zahl (Tage seit dem
+   1.1.1970 im Kalender des Geräts). Er wird mit jeder Antwort festgehalten
+   (Feld tag), ebenso der Tag der ersten Antwort (Feld erst). Die Tage zwischen
+   zwei Antworten zählen danach, nicht nach der Zeitzone des Geräts, das sie
+   später nachrechnet (verlauf.js). */
+function lerntag(zeit){
+  var d = new Date(tagesbeginn(zeit));
+  return Math.round(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / TAG);
+}
+
+/* Tage seit der letzten Antwort: nach dem festgehaltenen Lerntag, bei Ständen
+   ohne Lerntag nach dem Tageswechsel um vier Uhr Ortszeit. Liegt die letzte
+   Antwort in der Zukunft (Uhr verstellt), zählt das als 0 Tage; ebenso ein
+   unbrauchbarer Wert. */
+function tageSeit(k, jetzt, heute){
+  if(k.zuletzt > jetzt) return 0;
+  var t = (typeof k.tag === "number" && isFinite(k.tag)) ? heute - k.tag
+        : Math.round((tagesbeginn(jetzt) - tagesbeginn(k.zuletzt)) / TAG);
   return t > 0 ? t : 0;
 }
 
@@ -120,8 +135,9 @@ function tageSeit(zuletzt, jetzt){
    Die Bibliothek zählt vergangene Tage nach dem UTC-Datum. Damit sie auf die
    Tage der App kommt, bekommt sie als letzte Antwort einen Zeitpunkt genau so
    viele volle Tage vor jetzt; gespeichert bleibt der echte Zeitpunkt. */
-function zuKarte(k, jetzt){
+function zuKarte(k, jetzt, heute){
   if(istNeu(k)) return L.createEmptyCard(new Date(jetzt));
+  if(heute === undefined) heute = lerntag(jetzt);
   return {
     due:            new Date(k.faellig || 0),
     stability:      k.s || 0,
@@ -132,16 +148,18 @@ function zuKarte(k, jetzt){
     lapses:         k.fehler || 0,
     learning_steps: k.lern || 0,
     state:          zustandVon(k),
-    last_review:    k.zuletzt ? new Date(jetzt - tageSeit(k.zuletzt, jetzt) * TAG) : undefined
+    last_review:    (k.zuletzt || typeof k.tag === "number") ? new Date(jetzt - tageSeit(k, jetzt, heute) * TAG) : undefined
   };
 }
 
 /* Karte der Bibliothek -> Lernstand. k bleibt unberührt; Felder, die die
    Bibliothek nicht kennt (etwa ein alter faktor), werden mitgenommen. */
-function vonKarte(k, c, jetzt){
+function vonKarte(k, c, jetzt, heute){
   var n = {};
   Object.keys(k || {}).forEach(function(f){ n[f] = k[f]; });
   var m = 0, t = 0;
+  n.tag = heute;
+  if(istNeu(k)) n.erst = heute;     // bei Ständen aus der Zeit davor bleibt erst unbekannt
   n.s       = c.stability;
   n.d       = c.difficulty;
   n.st      = c.state;
@@ -166,17 +184,19 @@ function vonKarte(k, c, jetzt){
    Rechnet aus, was eine Antwort bewirkt, ohne das Wort selbst zu ändern.
    Rückgabe: k (neuer Zustand), minuten (lernt noch, kommt nach so vielen
    Minuten wieder) oder tage (kommt nach so vielen Tagen wieder). */
-function schritt(k, note, jetzt){
-  var c = planer.next(zuKarte(k, jetzt), new Date(jetzt), BEWERTUNG[note]).card;
-  return vonKarte(k, c, jetzt);
+function schritt(k, note, jetzt, heute){
+  if(heute === undefined) heute = lerntag(jetzt);
+  var c = planer.next(zuKarte(k, jetzt, heute), new Date(jetzt), BEWERTUNG[note]).card;
+  return vonKarte(k, c, jetzt, heute);
 }
 
 /* Was jede Antwort bewirken würde, für die Beschriftung der Knöpfe. */
 function vorschau(k, jetzt){
-  var alle = planerOhneStreuung.repeat(zuKarte(k, jetzt), new Date(jetzt));
+  var heute = lerntag(jetzt);
+  var alle = planerOhneStreuung.repeat(zuKarte(k, jetzt, heute), new Date(jetzt));
   var aus = {};
   NOTEN.forEach(function(note){
-    var e = vonKarte(k, alle[BEWERTUNG[note]].card, jetzt);
+    var e = vonKarte(k, alle[BEWERTUNG[note]].card, jetzt, heute);
     aus[note] = { minuten: e.minuten, tage: e.tage };
   });
   return aus;
@@ -214,6 +234,7 @@ function normalisieren(k){
     if(k.stufe === 1 && k.faellig === 0 && k.fehler > 0) k.lern = 0;
   }
   ["wdh", "zuletzt"].forEach(function(f){ if(!zahl(k[f])) delete k[f]; });
+  ["tag", "erst"].forEach(function(f){ if(!(zahl(k[f]) && k[f] % 1 === 0)) delete k[f]; });
   // Stabilität und Schwierigkeit nur zusammen und nur in dem Bereich, den die
   // Bibliothek annimmt; sonst setzt sie beides bei der nächsten Antwort neu.
   if(!(zahl(k.s) && k.s >= L.S_MIN && zahl(k.d) && k.d >= 1 && k.d <= 10)){ delete k.s; delete k.d; }
@@ -225,10 +246,16 @@ function normalisieren(k){
   return true;
 }
 
+/* Version des Plans: Bibliothek und Einstellungen. Steht bei jedem
+   Lernereignis, damit sich später nachvollziehen lässt, womit gerechnet wurde. */
+var VERSION = "ts-fsrs " + L.FSRSVersion + " | Ziel " + EINSTELLUNG.request_retention
+  + " | Lernen " + EINSTELLUNG.learning_steps.join(",") + " | nach Fehler " + EINSTELLUNG.relearning_steps.join(",")
+  + " | höchstens " + EINSTELLUNG.maximum_interval + " Tage" + (EINSTELLUNG.enable_fuzz ? " | Streuung" : "");
+
 var PLAN = {
   MIN: MIN, TAG: TAG, NOTEN: NOTEN, TREPPE: TREPPE, MAXSTUFE: MAXSTUFE,
-  BIBLIOTHEK: "ts-fsrs " + L.FSRSVersion, EINSTELLUNG: EINSTELLUNG,
-  tagesbeginn: tagesbeginn, faelligNach: faelligNach, stufeVon: stufeVon,
+  BIBLIOTHEK: "ts-fsrs " + L.FSRSVersion, EINSTELLUNG: EINSTELLUNG, VERSION: VERSION,
+  tagesbeginn: tagesbeginn, faelligNach: faelligNach, lerntag: lerntag, stufeVon: stufeVon,
   istNeu: istNeu, istDran: istDran, istBald: istBald,
   zuKarte: zuKarte, schritt: schritt, vorschau: vorschau, dauer: dauer, normalisieren: normalisieren
 };

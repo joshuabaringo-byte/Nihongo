@@ -28,7 +28,12 @@ function sortiert(x){
   return String(JSON.stringify(x));
 }
 function zufallsquelle(saat){ let s = saat; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
-function kennungen(praefix){ let n = 0; return () => "00000000-0000-4000-8000-" + (praefix + String(++n)).padStart(12, "0"); }
+/* Kennungen im UUID-Format (nur Hex-Ziffern), je Erzeuger eindeutig */
+function kennungen(praefix){
+  let n = 0;
+  const p = Buffer.from(String(praefix)).toString("hex");
+  return () => "00000000-0000-4000-8000-" + (p + (++n).toString(16)).padStart(12, "0").slice(-12);
+}
 
 /* Lernt wie die App: früh geübt und gewusst ändert nichts und wird nicht
    festgehalten; sonst neuer Stand und ein Ereignis "antwort". */
@@ -69,13 +74,13 @@ if(process.env.VERLAUF_AUFGABE === "aufzeichnen"){
   const z = zufallsquelle(77), id = kennungen("7");
   const aus = [];
   for(let n = 0; n < 40; n++) aus.push(verlauf(z, 60, WOERTER, Date.UTC(2026, 0, 3 + n * 7, 2 + n % 20, 13), id, "geraet-tokio", false));
-  process.stdout.write(JSON.stringify(aus));
-  process.exit(0);
+  process.stdout.write(JSON.stringify(aus), () => process.exit(0));   // erst nach dem Schreiben beenden
+  return;
 }
 if(process.env.VERLAUF_AUFGABE === "nachrechnen"){
   const laeufe = JSON.parse(require("fs").readFileSync(0, "utf8"));
-  process.stdout.write(JSON.stringify(laeufe.map(l => VERLAUF.nachrechnen(l.ereignisse))));
-  process.exit(0);
+  process.stdout.write(JSON.stringify(laeufe.map(l => VERLAUF.nachrechnen(l.ereignisse))), () => process.exit(0));
+  return;
 }
 
 /* ---------- Prüfungen ---------- */
