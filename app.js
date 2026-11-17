@@ -491,7 +491,9 @@ function zeichneSteuerung(){
     return;
   }
   var k = karte(schlange[0].id);
-  var vs = PLAN.vorschau(k, Date.now());
+  var vs;
+  try{ vs = PLAN.vorschau(k, Date.now()); }
+  catch(e){ zeichneUeberspringen(ziel); return; }
   var frueh = istFrueh(k);
   function knopf(note, name){
     // Zu früh geübt und gewusst ändert den Plan nicht.
@@ -507,6 +509,21 @@ function zeichneSteuerung(){
   $$("#steuerung .tap").forEach(function(b){
     b.addEventListener("click", function(){ bewerte(b.dataset.note); });
   });
+}
+
+/* Lässt sich für ein Wort kein Termin berechnen, wird es nicht bewertet.
+   Statt der Antwortknöpfe gibt es nur "Überspringen"; das Wort bleibt
+   unverändert und kommt beim nächsten Durchgang wieder. */
+function zeichneUeberspringen(ziel){
+  ziel.innerHTML = '<div class="info">Für dieses Wort lässt sich gerade kein Termin berechnen. '
+    + "Es bleibt unverändert.</div>"
+    + '<button class="umdrehknopf" id="ueberspringen">Überspringen</button>';
+  $("#ueberspringen").addEventListener("click", ueberspringen);
+}
+function ueberspringen(){
+  if(!schlange.length) return;
+  schlange.shift();
+  zeichneLernen();
 }
 
 function umdrehen(){
@@ -552,11 +569,21 @@ function bewerte(note){
   var warNeu = PLAN.istNeu(vorher);
   var frueh = istFrueh(vorher);
   var minuten = 0;
+  var s = null;
 
-  schlange.shift();
+  // Erst rechnen, dann die Karte weglegen: scheitert die Rechnung, bleibt
+  // alles, wie es war, und kein anderes Wort wird an ihrer Stelle bewertet.
   if(!(frueh && note !== "nochmal")){
+    try{ s = PLAN.schritt(vorher, note, Date.now()); }
+    catch(e){
+      zeichneSteuerung();
+      melde("Termin ließ sich nicht berechnen – nichts geändert");
+      return;
+    }
+  }
+  schlange.shift();
+  if(s){
     var k = karteSchreiben(v.id);
-    var s = PLAN.schritt(k, note, Date.now());
     uebernehmen(k, s.k);
     minuten = s.minuten;
     if(warNeu){ neuHeute(); einst.neuHeute.n += 1; einstSichern(); }
