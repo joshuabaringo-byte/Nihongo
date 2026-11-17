@@ -108,7 +108,18 @@ function zustandVon(k){
   return k.ivl > 0 ? L.State.Relearning : L.State.Learning;
 }
 
-/* Lernstand eines Wortes -> Karte der Bibliothek */
+/* Tage seit der letzten Antwort, gezählt wie in der App: ab dem Tageswechsel
+   um vier Uhr Ortszeit. Liegt die letzte Antwort in der Zukunft (Uhr
+   verstellt), zählt das als 0 Tage; ebenso ein unbrauchbarer Zeitpunkt. */
+function tageSeit(zuletzt, jetzt){
+  var t = Math.round((tagesbeginn(jetzt) - tagesbeginn(zuletzt)) / TAG);
+  return t > 0 ? t : 0;
+}
+
+/* Lernstand eines Wortes -> Karte der Bibliothek.
+   Die Bibliothek zählt vergangene Tage nach dem UTC-Datum. Damit sie auf die
+   Tage der App kommt, bekommt sie als letzte Antwort einen Zeitpunkt genau so
+   viele volle Tage vor jetzt; gespeichert bleibt der echte Zeitpunkt. */
 function zuKarte(k, jetzt){
   if(istNeu(k)) return L.createEmptyCard(new Date(jetzt));
   return {
@@ -121,7 +132,7 @@ function zuKarte(k, jetzt){
     lapses:         k.fehler || 0,
     learning_steps: k.lern || 0,
     state:          zustandVon(k),
-    last_review:    k.zuletzt ? new Date(k.zuletzt) : undefined
+    last_review:    k.zuletzt ? new Date(jetzt - tageSeit(k.zuletzt, jetzt) * TAG) : undefined
   };
 }
 
