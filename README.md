@@ -242,6 +242,7 @@ Einstellungen und Dojo gilt weiter: Der Tab, der zuletzt speichert, gewinnt.
     node tests/plan.test.js       # Wiederholungsplan, braucht nur Node
     node tests/kennungen.test.js  # keine Kennung geht verloren, braucht nur Node
     node tests/verlauf.test.js    # Antwort-Historie: Nachrechnen, Geräte, Zeitzonen, braucht nur Node
+    node tests/version.test.js    # sichtbare Version und Service Worker passen zusammen
     node tests/app.test.js        # die App im Browser, braucht Playwright mit Chromium
 
 `app.test.js` startet einen eigenen kleinen Webserver und arbeitet in leeren
@@ -309,8 +310,9 @@ Eine Gruppe, die kein Topic des Buchs ist, bekommt in `TOPICNAMEN` einen eigenen
 Namen; ohne Eintrag heißt sie schlicht „Topic n". So liegen die Zählwörter und
 Preise von Buchseite 8 bis 9 unter **Grundlagen** vor Topic 1.
 
-Nach jeder Änderung in `sw.js` die `VERSION` hochzählen, damit die installierte
-App die neue Fassung lädt.
+Nach jeder Änderung die Version hochzählen, damit die installierte App die neue Fassung
+lädt: sichtbar unter *Über* in `index.html` (etwa `0.32 Beta`) und gleichlautend in
+`sw.js` (`kotoba-0.32-beta`). `tests/version.test.js` prüft, dass beide zusammenpassen.
 
 ### Kennungen
 

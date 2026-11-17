@@ -1,6 +1,8 @@
 /* Service Worker: hält die App offline verfügbar.
-   Bei jeder Änderung an den Dateien die VERSION erhöhen. */
-var VERSION = "kotoba-v31";
+   Bei jeder Änderung an den Dateien die VERSION erhöhen, zusammen mit der
+   sichtbaren Version unter "Über" in index.html (0.31 Beta -> kotoba-0.31-beta).
+   tests/version.test.js prüft, dass beide zusammenpassen. */
+var VERSION = "kotoba-0.31-beta";
 var DATEIEN = [
   "./",
   "./index.html",
