@@ -290,6 +290,17 @@ function server(){
     pruefe("C7 ohne Fehler der Seiten", a.fehler.length + b.fehler.length === 0, a.fehler.concat(b.fehler).join(" | "));
     await ctx.close();
 
+    // Ohne Begrenzung für neue Wörter ("alle"): Der Tageszähler ist dann vorher
+    // nie angelegt worden. Antworten müssen trotzdem gespeichert und gezählt werden.
+    ctx = await profil(); a = await seite(ctx);
+    await setze(a, { "kotoba-einst": Object.assign({}, EINST, { neuProTag: 0 }) });
+    for(let i = 0; i < 3; i++){ await a.keyboard.press("Space"); await a.keyboard.press("4"); }
+    await a.waitForTimeout(150);
+    st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
+    pruefe("ohne Begrenzung (alle): 3 Antworten gespeichert, Tageszähler 3", Object.keys(st).length === 3 && einst.neuHeute && einst.neuHeute.n === 3, Object.keys(st).length + " / " + JSON.stringify(einst.neuHeute));
+    pruefe("ohne Begrenzung: keine Fehler der Seite", a.fehler.length === 0, a.fehler.join(" | "));
+    await ctx.close();
+
     // Dasselbe Wort, in A schon fertig (leicht -> Wiederholung in Tagen), in B noch offen
     ctx = await profil(); a = await seite(ctx);
     await setze(a, { "kotoba-einst": EINST });
