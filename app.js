@@ -75,9 +75,9 @@ function retten(schluessel, roh){
   gesperrt[schluessel] = roh;
 }
 function lege(schluessel, wert){
-  if(gesperrt[schluessel] !== undefined) return;     // unlesbar und nicht gesichert: nicht überschreiben
-  try{ localStorage.setItem(schluessel, JSON.stringify(wert)); }
-  catch(e){ speicherOk = false; }
+  if(gesperrt[schluessel] !== undefined) return false;   // unlesbar und nicht gesichert: nicht überschreiben
+  try{ localStorage.setItem(schluessel, JSON.stringify(wert)); return true; }
+  catch(e){ speicherOk = false; return false; }
 }
 function gefuellt(schluessel){
   try{ return !!localStorage.getItem(schluessel); }catch(e){ return false; }
@@ -119,7 +119,7 @@ if(einst.listeStufe === undefined) einst.listeStufe = 0;
 if(einst.neuProTag  === undefined) einst.neuProTag  = 15;
 if(["kana", "de", "kanji"].indexOf(einst.richtung) < 0) einst.richtung = "kana";
 
-function standSichern(){ lege(K_STAND, stand); }
+function standSichern(){ return lege(K_STAND, stand); }
 function einstSichern(){ lege(K_EINST, einst); }
 
 /* ---------- Kartenzustand ----------
@@ -1029,18 +1029,88 @@ function standKopieren(){
     catch(e){ melde("Bitte von Hand markieren und kopieren"); }
   }
 }
-function standLaden(){
-  var roh = $("#exportFeld").value.trim();
+/* Laden ersetzt den ganzen Lernstand. Deshalb: erst prüfen, ohne etwas
+   anzufassen, dann mit Zahlen nachfragen, den jetzigen Stand aufbewahren
+   und erst danach ersetzen. Der aufbewahrte Stand lässt sich mit
+   "Vorherigen Stand zurückholen" wiederherstellen. */
+var K_VORHER = "kotoba-v2-vorher";
+var KENNUNGEN = null;
+function istWortDerApp(id){
+  if(!KENNUNGEN){ KENNUNGEN = {}; V.forEach(function(v){ KENNUNGEN[v.id] = true; }); }
+  return KENNUNGEN[id] === true;
+}
+function woerterText(n){ return n === 1 ? "1 Wort" : n + " Wörter"; }
+/* Gleicher Lernstand? Die Reihenfolge der Einträge und Felder spielt keine Rolle. */
+function gleicherStand(a, b){
+  var ka = Object.keys(a), kb = Object.keys(b);
+  if(ka.length !== kb.length) return false;
+  function sortiert(o){ return JSON.stringify(Object.keys(o).sort().map(function(f){ return [f, o[f]]; })); }
+  return ka.every(function(id){ return b[id] && sortiert(a[id]) === sortiert(b[id]); });
+}
+function vorherAufbewahren(){
   try{
-    var neu = JSON.parse(roh);
-    if(!neu || typeof neu !== "object" || Array.isArray(neu)) throw new Error("Form");
-    stand = normalisiere(neu);
-    standSichern();
-    alleNeuZeichnen();
-    melde("Lernstand geladen");
-  }catch(e){
+    var roh = JSON.stringify({ zeit: Date.now(), stand: stand });
+    localStorage.setItem(K_VORHER, roh);
+    return localStorage.getItem(K_VORHER) === roh;
+  }catch(e){ return false; }
+}
+function holeVorher(){
+  var v = hole(K_VORHER, null);
+  return (v && v.stand && typeof v.stand === "object" && !Array.isArray(v.stand)) ? v : null;
+}
+function zurueckholenAnzeigen(){
+  var b = $("#knopfZurueckholen");
+  if(b) b.hidden = !holeVorher();
+}
+/* Ersetzt den Lernstand, nachdem der jetzige aufbewahrt ist. Scheitert
+   eines von beiden, bleibt alles, wie es war. */
+function standErsetzen(neu, fertig){
+  if(!vorherAufbewahren()){ melde("Jetziger Stand ließ sich nicht aufbewahren – nichts geändert"); return; }
+  var alt = stand;
+  stand = neu;
+  if(!standSichern()){ stand = alt; melde("Speichern ging nicht – nichts geändert"); return; }
+  alleNeuZeichnen();
+  zurueckholenAnzeigen();
+  melde(fertig);
+}
+function standLaden(){
+  var neu;
+  try{ neu = JSON.parse($("#exportFeld").value.trim()); }catch(e){ neu = null; }
+  if(!neu || typeof neu !== "object" || Array.isArray(neu)){
     melde("Text nicht lesbar - bitte vollständig einfügen");
+    return;
   }
+  neu = normalisiere(neu);
+  var inSicherung = Object.keys(neu).filter(istWortDerApp);
+  if(!inSicherung.length){ melde("In diesem Text steht kein Lernstand dieser App"); return; }
+  if(gleicherStand(neu, stand)){ melde("Das ist bereits dein aktueller Lernstand"); return; }
+
+  var jetzt  = Object.keys(stand).filter(istWortDerApp);
+  var fehlen = jetzt.filter(function(id){ return !neu[id]; }).length;
+  var neuer  = jetzt.filter(function(id){
+    return neu[id] && (stand[id].zuletzt || 0) > (neu[id].zuletzt || 0);
+  }).length;
+  var frage = "Lernstand ersetzen?\n\n"
+    + "Jetzt: " + woerterText(jetzt.length) + " begonnen\n"
+    + "In der Sicherung: " + woerterText(inSicherung.length) + "\n"
+    + (fehlen ? (fehlen === 1 ? "1 gelerntes Wort fehlt" : fehlen + " gelernte Wörter fehlen") + " in der Sicherung.\n" : "")
+    + (neuer ? "Bei " + (neuer === 1 ? "1 Wort" : neuer + " Wörtern") + " ist dein jetziger Stand neuer.\n" : "")
+    + "\nDein jetziger Stand wird vorher aufbewahrt und lässt sich mit "
+    + "„Vorherigen Stand zurückholen“ wiederherstellen.";
+  if(!confirm(frage)) return;
+  standErsetzen(neu, "Lernstand geladen");
+}
+function vorherZurueckholen(){
+  var v = holeVorher();
+  if(!v){ zurueckholenAnzeigen(); return; }
+  var d = new Date(v.zeit);
+  var wann = isFinite(d) ? d.toLocaleDateString("de-DE") + " "
+    + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "unbekannt";
+  var anzahl = Object.keys(v.stand).filter(istWortDerApp).length;
+  if(!confirm("Den Stand von vor dem letzten Laden zurückholen?\n\n"
+    + "Aufbewahrt am " + wann + ", " + woerterText(anzahl) + ".\n\n"
+    + "Dein jetziger Stand wird dabei seinerseits aufbewahrt.")) return;
+  standErsetzen(normalisiere(v.stand), "Vorheriger Stand zurückgeholt");
 }
 function standReset(){
   if(!confirm("Wirklich den kompletten Lernstand löschen? Das lässt sich nicht rückgängig machen.")) return;
@@ -1167,6 +1237,8 @@ function verdrahten(){
 
   $("#knopfKopieren").addEventListener("click", standKopieren);
   $("#knopfLaden").addEventListener("click", standLaden);
+  var zurueck = $("#knopfZurueckholen");
+  if(zurueck) zurueck.addEventListener("click", vorherZurueckholen);
   $("#knopfReset").addEventListener("click", standReset);
 
   document.addEventListener("keydown", function(e){
@@ -1315,6 +1387,7 @@ function start(){
   verdrahten();
   limitAnzeigen();
   neuAnzeigen();
+  zurueckholenAnzeigen();
   themaSetzen(einst.thema);
   zeichneFilter();
   schlangeBauen(false);
