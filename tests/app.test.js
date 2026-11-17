@@ -266,21 +266,23 @@ function server(){
   /* ================================================================ C7 */
   if(will("c7")) await abschnitt("c7", async () => {
     console.log("\nC7 Zwei Tabs");
+    // Ursprüngliche Reproduktion: A bewertet 2 Wörter, dann B 1 Wort. Tab B übt
+    // einen anderen Abschnitt, damit es wirklich drei verschiedene Wörter sind.
     let ctx = await profil(), a = await seite(ctx);
     await setze(a, { "kotoba-einst": EINST });
+    await a.evaluate(e => localStorage.setItem("kotoba-einst", JSON.stringify(Object.assign({}, e, { filter: { art: "ab", wert: "8-2" } }))), EINST);
     let b = await seite(ctx); await b.waitForTimeout(250);
     const kopfB = await b.locator("#zaehlerText").innerText();
-    // Ursprüngliche Reproduktion: A bewertet 2 Wörter, dann B 1 Wort
-    for(let i = 0; i < 2; i++){ await a.click("#umdrehen"); await a.click(".tap.leicht"); }
+    const gezeigtA = [];
+    for(let i = 0; i < 2; i++){ await a.click("#umdrehen"); gezeigtA.push(await gezeigt(a)); await a.click(".tap.leicht"); }
     await a.waitForTimeout(150);
     const kopfB2 = await b.locator("#zaehlerText").innerText();
     pruefe("Tab B zeigt die Antworten aus Tab A an (" + kopfB + " -> " + kopfB2 + ")", kopfB === "keine fällig · 5 neu" && kopfB2 === "keine fällig · 3 neu", kopfB + " / " + kopfB2);
-    await b.click("#umdrehen"); await b.click(".tap.leicht"); await b.waitForTimeout(150);
+    await b.click("#umdrehen"); const gezeigtB = await gezeigt(b); await b.click(".tap.leicht"); await b.waitForTimeout(150);
     let st = await stand(a);
-    pruefe("A 2 Wörter, B 1 Wort: alle 3 Antworten gespeichert", Object.keys(st).length === 3, Object.keys(st).length);
+    pruefe("A 2 Wörter (" + gezeigtA.join(", ") + "), B 1 Wort (" + gezeigtB + "): alle 3 gespeichert", Object.keys(st).length === 3 && Object.values(st).every(k => k.wdh === 1 && k.st === 2), Object.keys(st).length);
     let einst = JSON.parse(await roh(a, "kotoba-einst"));
     pruefe("Tageszähler neue Wörter = 3", einst.neuHeute && einst.neuHeute.n === 3, JSON.stringify(einst.neuHeute));
-    // B weiter: noch 2 Wörter aus seiner Schlange
     for(let i = 0; i < 2; i++){ await b.click("#umdrehen"); await b.click(".tap.leicht"); }
     await b.waitForTimeout(150);
     st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
@@ -288,7 +290,23 @@ function server(){
     pruefe("C7 ohne Fehler der Seiten", a.fehler.length + b.fehler.length === 0, a.fehler.concat(b.fehler).join(" | "));
     await ctx.close();
 
-    // dasselbe Wort in beiden Tabs
+    // Dasselbe Wort, in A schon fertig (leicht -> Wiederholung in Tagen), in B noch offen
+    ctx = await profil(); a = await seite(ctx);
+    await setze(a, { "kotoba-einst": EINST });
+    b = await seite(ctx); await b.waitForTimeout(250);
+    await a.click("#umdrehen"); await b.click("#umdrehen");
+    const x = await gezeigt(a), xb = await gezeigt(b);
+    await a.click(".tap.leicht"); await a.waitForTimeout(150);
+    const nachA = await stand(a);
+    const knopfB = await b.evaluate(() => document.querySelector("#steuerung .tap.leicht .klein").textContent);
+    pruefe("Tab B: Knopf \"leicht\" zeigt nach der Antwort in A \"unverändert\"", knopfB === "unverändert", knopfB);
+    await b.click(".tap.leicht"); await b.waitForTimeout(150);
+    st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
+    pruefe("dasselbe Wort " + x + ", in A schon fertig: Antwort in B ändert den Plan nicht", x === xb && JSON.stringify(st) === JSON.stringify(nachA), JSON.stringify(st));
+    pruefe("und zählt nicht doppelt als neues Wort", einst.neuHeute && einst.neuHeute.n === 1, JSON.stringify(einst.neuHeute));
+    await ctx.close();
+
+    // Dasselbe Wort, in A erst im Lernschritt: beide Antworten zählen nacheinander
     ctx = await profil(); a = await seite(ctx);
     await setze(a, { "kotoba-einst": EINST });
     b = await seite(ctx); await b.waitForTimeout(250);
