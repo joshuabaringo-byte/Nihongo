@@ -60,8 +60,9 @@ function server(){
     await ctx.route("**/*", r => r.request().url().startsWith(BASIS) ? r.continue() : r.abort());
     return ctx;
   }
-  async function seite(ctx){
+  async function seite(ctx, zeit){
     const page = await ctx.newPage();
+    if(zeit) await page.clock.setFixedTime(new Date(zeit));     // feste Uhrzeit, gilt auch nach Neuladen
     page.setDefaultTimeout(3000);
     page.fehler = []; page.dialoge = [];
     page.antwort = "ablehnen";                       // was auf die nächste Rückfrage geantwortet wird
@@ -396,6 +397,183 @@ function server(){
     pruefe("Speichern geht wieder: alle 4 Antworten gespeichert", Object.keys(await stand(page)).length === 4, Object.keys(await stand(page)).length);
     pruefe("und die Warnung ist verschwunden", (await warnung()) === "");
     pruefe("C5 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+  });
+
+  /* ================================================================ P2 */
+  if(will("p2")) await abschnitt("p2", async () => {
+    console.log("\nP2 Sicherung als Datei, vollständige Sicherung, Erinnerung");
+    /* n gelernte Wörter der Gruppe N5, zuletzt vor alterTage Tagen beantwortet */
+    const viele = (page, n, alterTage) => page.evaluate(([n, z]) => {
+      const st = {}, t = Date.now() - z * 86400000;
+      V.filter(v => v.t === 8).slice(0, n).forEach(v => {
+        const k = PLAN.schritt({ stufe: 0, faellig: 0, fehler: 0 }, "gut", t).k;
+        st[v.id] = PLAN.schritt(k, "gut", t + 600000).k;
+      });
+      return st;
+    }, [n, alterTage]);
+    const einstLesen = page => page.evaluate(() => JSON.parse(localStorage.getItem("kotoba-einst") || "{}"));
+    const dojoLesen  = page => page.evaluate(() => JSON.parse(localStorage.getItem("kotoba-dojo") || "null") || {});
+    const sichtbar   = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return !!(e && e.offsetParent); }, sel);
+    const text       = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return e ? e.textContent : ""; }, sel);
+    const ohneTeilen = () => { delete Navigator.prototype.share; delete Navigator.prototype.canShare; };
+    const neuLaden   = async (page, fn) => { const nav = page.waitForNavigation({ timeout: 5000 }).catch(() => null); await fn(); await nav; await page.waitForTimeout(250); };
+    const dateiWaehlen = async (page, name, inhalt) => {
+      await page.evaluate(() => { document.querySelector("#dateiFeld").value = ""; });
+      await page.setInputFiles("#dateiFeld", { name: name, mimeType: "application/json", buffer: Buffer.from(inhalt) });
+    };
+    const E20 = Object.assign({}, EINST, { neuProTag: 20 });
+
+    // 1. Als Datei sichern: Download, wo Teilen fehlt
+    let ctx = await profil(); await ctx.addInitScript(ohneTeilen);
+    let page = await seite(ctx);
+    const st12 = await viele(page, 12, 2);
+    await setze(page, { "kotoba-einst": E20, "kotoba-v2": st12, "kotoba-dojo": { blumen: 7 } });
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    pruefe("\"Als Datei sichern\" ist der grüne Hauptknopf", await page.evaluate(() => document.querySelector("#knopfDatei").classList.contains("voll")));
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#knopfDatei")]);
+    const name = dl.suggestedFilename();
+    let inhalt = {}; try{ inhalt = JSON.parse(fs.readFileSync(await dl.path(), "utf8")); }catch(e){ /* bleibt leer */ }
+    pruefe("Datei " + name + ": Name mit Datum", /^kotoba-sicherung-\d{4}-\d{2}-\d{2}\.json$/.test(name), name);
+    pruefe("Datei enthält Lernstand (12 Wörter), Einstellungen und Dojo", inhalt.app === "kotoba" && inhalt.format === 2
+      && JSON.stringify(inhalt.stand) === JSON.stringify(st12) && inhalt.einst && inhalt.einst.neuProTag === 20 && inhalt.dojo && inhalt.dojo.blumen === 7,
+      JSON.stringify(Object.keys(inhalt)));
+    let e = await einstLesen(page);
+    pruefe("Sicherung ist vermerkt", e.sicherung && Math.abs(e.sicherung.zuletzt - Date.now()) < 60000, JSON.stringify(e.sicherung));
+    pruefe("Einstellungen zeigen \"Zuletzt gesichert\" mit Datum", /Zuletzt gesichert: \d{1,2}\.\d{1,2}\.\d{4}/.test(await text(page, "#sicherungZeile")), await text(page, "#sicherungZeile"));
+    await ctx.close();
+
+    // 2. Teilen-Menü (iPhone): geteilt zählt, abgebrochen nicht
+    ctx = await profil();
+    await ctx.addInitScript(() => {
+      Navigator.prototype.canShare = function(){ return true; };
+      Navigator.prototype.share = function(d){ window.__geteilt = d; return window.__abbruch ? Promise.reject(new DOMException("abgebrochen", "AbortError")) : Promise.resolve(); };
+    });
+    page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": st12, "kotoba-dojo": { blumen: 7 } });
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    await page.evaluate(() => { window.__abbruch = true; });
+    await page.click("#knopfDatei"); await page.waitForTimeout(150);
+    e = await einstLesen(page);
+    pruefe("Teilen abgebrochen: zählt nicht als Sicherung", !(e.sicherung && e.sicherung.zuletzt), JSON.stringify(e.sicherung));
+    await page.evaluate(() => { window.__abbruch = false; window.__geteilt = null; });
+    await page.click("#knopfDatei"); await page.waitForTimeout(150);
+    const geteilt = await page.evaluate(async () => {
+      const f = window.__geteilt && window.__geteilt.files && window.__geteilt.files[0];
+      return f ? { name: f.name, text: await f.text() } : null;
+    });
+    let g = {}; try{ g = JSON.parse(geteilt.text); }catch(err){ /* bleibt leer */ }
+    e = await einstLesen(page);
+    pruefe("Teilen: Datei mit vollständiger Sicherung, zählt als Sicherung", g.app === "kotoba" && Object.keys(g.stand || {}).length === 12 && g.dojo && g.dojo.blumen === 7
+      && e.sicherung && e.sicherung.zuletzt > 0, geteilt && geteilt.name);
+    await ctx.close();
+
+    // 3. Aus Datei laden: vollständige Sicherung, Rückfrage, Neustart, Zurückholen
+    ctx = await profil(); page = await seite(ctx);
+    const st3 = await viele(page, 3, 5);
+    const sicherung = JSON.stringify({ app: "kotoba", format: 2, erstellt: Date.now() - 5 * TAG, stand: st3,
+      einst: Object.assign({}, EINST, { neuProTag: 30, thema: "dunkel" }), dojo: { blumen: 42 } });
+    await setze(page, { "kotoba-einst": E20, "kotoba-v2": st12, "kotoba-dojo": { blumen: 7 } });
+    page.dialoge.length = 0; page.antwort = "ablehnen";
+    await dateiWaehlen(page, "kotoba-sicherung.json", sicherung); await page.waitForTimeout(300);
+    const frage = page.dialoge[0] || "";
+    pruefe("Rückfrage nennt 12 jetzt, 3 in der Sicherung, Einstellungen und Dojo", /12 Wörter/.test(frage) && /3 Wörter/.test(frage) && /Einstellungen/.test(frage) && /Dojo/.test(frage), frage.replace(/\n/g, " | "));
+    pruefe("abgelehnt: nichts geändert", Object.keys(await stand(page)).length === 12 && (await einstLesen(page)).neuProTag === 20 && (await dojoLesen(page)).blumen === 7);
+    page.dialoge.length = 0; page.antwort = "ok";
+    await neuLaden(page, () => dateiWaehlen(page, "kotoba-sicherung.json", sicherung));
+    e = await einstLesen(page);
+    pruefe("bestätigt: nach dem Neustart Lernstand (3), Einstellungen (30, dunkel) und Dojo (42) aus der Sicherung",
+      Object.keys(await stand(page)).length === 3 && e.neuProTag === 30 && e.thema === "dunkel" && (await dojoLesen(page)).blumen === 42,
+      Object.keys(await stand(page)).length + " / " + e.neuProTag + " / " + e.thema + " / " + (await dojoLesen(page)).blumen);
+    pruefe("nach dem Neustart: Meldung \"Sicherung geladen\", Knopf zeigt 30", (await text(page, "#meldung")) === "Sicherung geladen" && (await text(page, "#neuKnopf")) === "30",
+      (await text(page, "#meldung")) + " / " + (await text(page, "#neuKnopf")));
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    pruefe("\"Vorherigen Stand zurückholen\" ist sichtbar", await page.isVisible("#knopfZurueckholen"));
+    page.dialoge.length = 0; page.antwort = "ok";
+    await neuLaden(page, () => page.click("#knopfZurueckholen"));
+    e = await einstLesen(page);
+    pruefe("Zurückholen: Lernstand (12), Einstellungen (20) und Dojo (7) wieder da",
+      Object.keys(await stand(page)).length === 12 && e.neuProTag === 20 && (await dojoLesen(page)).blumen === 7,
+      Object.keys(await stand(page)).length + " / " + e.neuProTag + " / " + (await dojoLesen(page)).blumen);
+
+    // 4. alte Sicherung (nur Lernstand) und ungültige Dateien
+    const alt2 = {}; Object.keys(st12).slice(0, 2).forEach(id => { alt2[id] = st12[id]; });
+    page.dialoge.length = 0; page.antwort = "ok";
+    await dateiWaehlen(page, "alt.json", JSON.stringify(alt2)); await page.waitForTimeout(300);
+    e = await einstLesen(page);
+    pruefe("alte Sicherung (nur Lernstand): Rückfrage ohne Einstellungen, nur der Lernstand ersetzt",
+      page.dialoge.length === 1 && !/Einstellungen/.test(page.dialoge[0]) && Object.keys(await stand(page)).length === 2
+      && e.neuProTag === 20 && (await dojoLesen(page)).blumen === 7 && (await text(page, "#meldung")) === "Lernstand geladen",
+      (page.dialoge[0] || "").replace(/\n/g, " | ") + " / " + (await text(page, "#meldung")));
+    for(const [art, datei, muster] of [["kein JSON", "hallo", /nicht lesbar/], ["fremdes JSON", '{"a":1}', /kein Lernstand/]]){
+      page.dialoge.length = 0;
+      await dateiWaehlen(page, "x.json", datei); await page.waitForTimeout(250);
+      const m = await text(page, "#meldung");
+      pruefe("ungültige Datei (" + art + "): abgelehnt ohne Rückfrage (" + m + ")", page.dialoge.length === 0 && muster.test(m) && Object.keys(await stand(page)).length === 2, m);
+    }
+    pruefe("P2 Teil 1-4 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 5. Text: kopierter Text ist vollständig und stellt alles wieder her
+    ctx = await profil(); page = await seite(ctx);
+    await setze(page, { "kotoba-einst": E20, "kotoba-v2": st12, "kotoba-dojo": { blumen: 7 } });
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    pruefe("\"Stand kopieren\" ist jetzt ein normaler Knopf", await page.evaluate(() => !document.querySelector("#knopfKopieren").classList.contains("voll")));
+    await page.click("#knopfKopieren"); await page.waitForTimeout(150);
+    const kopiert = await page.evaluate(() => navigator.clipboard.readText().catch(() => ""));
+    let t = {}; try{ t = JSON.parse(kopiert); }catch(err){ /* bleibt leer */ }
+    pruefe("kopierter Text enthält Lernstand, Einstellungen und Dojo", t.app === "kotoba" && Object.keys(t.stand || {}).length === 12 && t.einst && t.einst.neuProTag === 20 && t.dojo && t.dojo.blumen === 7);
+    pruefe("Kopieren zählt als Sicherung", ((await einstLesen(page)).sicherung || {}).zuletzt > 0);
+    await page.evaluate(() => { localStorage.setItem("kotoba-dojo", JSON.stringify({ blumen: 99 })); });
+    await page.reload(); await page.waitForTimeout(250);
+    page.dialoge.length = 0; page.antwort = "ok";
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    await page.fill("#exportFeld", kopiert);
+    await neuLaden(page, () => page.click("#knopfLaden"));
+    pruefe("Text laden stellt auch das Dojo wieder her (99 -> 7)", page.dialoge.length === 1 && (await dojoLesen(page)).blumen === 7, (await dojoLesen(page)).blumen);
+    await ctx.close();
+
+    // 6. Zurücksetzen lässt sich rückgängig machen
+    ctx = await profil(); page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": st12 });
+    page.antwort = "ok"; page.dialoge.length = 0;
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    await page.click("#knopfReset"); await page.waitForTimeout(150);
+    pruefe("Zurücksetzen: Rückfrage sagt, dass es sich zurückholen lässt; Lernstand leer", /zurückholen/i.test(page.dialoge[0] || "") && Object.keys(await stand(page)).length === 0, page.dialoge[0]);
+    await page.click("#knopfZurueckholen"); await page.waitForTimeout(300);
+    pruefe("Zurückholen nach dem Zurücksetzen: 12 Wörter wieder da", Object.keys(await stand(page)).length === 12, Object.keys(await stand(page)).length);
+    pruefe("Teil 5-6 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 7. Erinnerung, mit fester Uhrzeit
+    const T0 = new Date("2026-11-17T10:00:00+01:00").getTime();
+    const EIN = { mischen: false, limit: 40, neuProTag: 5 };
+    const uhr = async (page, zeit) => { await page.clock.setFixedTime(new Date(zeit)); await page.reload(); await page.waitForTimeout(250); };
+    const erinnerung = page => page.evaluate(() => { const e = document.querySelector("#erinnerung"); return e && e.offsetParent ? e.textContent : ""; });
+    ctx = await profil(); await ctx.addInitScript(ohneTeilen);
+    page = await seite(ctx, T0);
+    const st9 = await viele(page, 9, 1), st12b = await viele(page, 12, 1);
+    await setze(page, { "kotoba-einst": EIN, "kotoba-v2": st9 });
+    pruefe("9 Wörter: keine Erinnerung", !(await erinnerung(page)));
+    await setze(page, { "kotoba-einst": EIN, "kotoba-v2": st12b });
+    let er = await erinnerung(page);
+    pruefe("12 Wörter, noch nie gesichert: Erinnerung erscheint", /Noch nie gesichert/.test(er), er);
+    await page.click("#erinnerungSpaeter"); await page.waitForTimeout(100);
+    pruefe("\"Später\": Erinnerung ist weg", !(await erinnerung(page)));
+    await uhr(page, T0 + 2 * TAG);
+    pruefe("2 Tage danach: weiter ausgeblendet", !(await erinnerung(page)));
+    await uhr(page, T0 + 4 * TAG);
+    pruefe("4 Tage danach: Erinnerung wieder da", !!(await erinnerung(page)));
+    await Promise.all([page.waitForEvent("download"), page.click("#erinnerungSichern")]);
+    await page.waitForTimeout(100);
+    pruefe("\"Jetzt sichern\": Datei kommt, Erinnerung ist weg", !(await erinnerung(page)));
+    await uhr(page, T0 + 12 * TAG);
+    pruefe("8 Tage nach der Sicherung, aber ohne neue Antworten: keine Erinnerung", !(await erinnerung(page)));
+    await page.click("#umdrehen"); await page.click(".tap.gut"); await page.waitForTimeout(100);
+    await page.reload(); await page.waitForTimeout(250);
+    er = await erinnerung(page);
+    pruefe("nach einer neuen Antwort: \"Letzte Sicherung vor 8 Tagen\"", /vor 8 Tagen/.test(er), er);
+    pruefe("Teil 7 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
     await ctx.close();
   });
 
