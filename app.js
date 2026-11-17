@@ -75,10 +75,40 @@ function retten(schluessel, roh){
   gesperrt[schluessel] = roh;
 }
 function lege(schluessel, wert){ return legeText(schluessel, JSON.stringify(wert)); }
+var nichtGespeichert = {};    // Schlüssel, deren letzter Speicherversuch gescheitert ist
 function legeText(schluessel, text){
   if(gesperrt[schluessel] !== undefined) return false;   // unlesbar und nicht gesichert: nicht überschreiben
-  try{ localStorage.setItem(schluessel, text); return true; }
-  catch(e){ speicherOk = false; return false; }
+  try{ localStorage.setItem(schluessel, text); }
+  catch(e){
+    speicherOk = false;
+    nichtGespeichert[schluessel] = true;
+    zeigeSpeicherWarnung();
+    return false;
+  }
+  if(nichtGespeichert[schluessel]){ delete nichtGespeichert[schluessel]; zeigeSpeicherWarnung(); }
+  return true;
+}
+/* Scheitert ein Speicherversuch (Speicher voll oder gesperrt), steht sofort ein
+   Hinweis über der Karte. Die Antworten bleiben im Speicher der Seite; sobald
+   das Speichern wieder klappt, kommen sie alle hinein und der Hinweis geht. */
+function zeigeSpeicherWarnung(){
+  var alt = document.getElementById("speicherWarnung");
+  if(!Object.keys(nichtGespeichert).length){
+    if(alt) alt.parentNode.removeChild(alt);
+    return;
+  }
+  var ziel = document.getElementById("kartenbereich");
+  if(alt || !ziel) return;
+  ziel.insertAdjacentHTML("beforebegin",
+      '<div class="info" id="speicherWarnung">Speichern geht gerade nicht (Speicher voll oder '
+    + "gesperrt). Deine Antworten dieser Sitzung sind nur vorläufig da. Kopiere den Lernstand, "
+    + "um sie zu sichern."
+    + '<button class="knopf" id="speicherWarnungKopieren" style="margin:10px 0 0">Lernstand kopieren</button>'
+    + "</div>");
+  document.getElementById("speicherWarnungKopieren").addEventListener("click", function(){
+    textKopieren(JSON.stringify(stand), "Lernstand kopiert");
+  });
+  melde("Nicht gespeichert – Speicher voll oder gesperrt");
 }
 function rohLesen(schluessel){
   try{ return localStorage.getItem(schluessel); }catch(e){ return null; }
@@ -1446,7 +1476,7 @@ function start(){
   zeichneLernen();
   kopfAktualisieren();
 
-  if(!speicherOk){
+  if(!speicherOk && !$("#speicherWarnung")){
     $("#kartenbereich").insertAdjacentHTML("beforebegin",
       '<div class="info">Dieser Browser speichert gerade nichts dauerhaft. Der Fortschritt gilt '
       + "nur für diese Sitzung.</div>");
