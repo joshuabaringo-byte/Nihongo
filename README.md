@@ -230,8 +230,9 @@ Einstellungen und Dojo gilt weiter: Der Tab, der zuletzt speichert, gewinnt.
 
 ## Tests
 
-    node tests/plan.test.js     # Wiederholungsplan, braucht nur Node
-    node tests/app.test.js      # die App im Browser, braucht Playwright mit Chromium
+    node tests/plan.test.js       # Wiederholungsplan, braucht nur Node
+    node tests/kennungen.test.js  # keine Kennung geht verloren, braucht nur Node
+    node tests/app.test.js        # die App im Browser, braucht Playwright mit Chromium
 
 `app.test.js` startet einen eigenen kleinen Webserver und arbeitet in leeren
 Browserprofilen; echte Lernstände bleiben unberührt. Playwright einrichten:
@@ -301,6 +302,24 @@ Preise von Buchseite 8 bis 9 unter **Grundlagen** vor Topic 1.
 Nach jeder Änderung in `sw.js` die `VERSION` hochzählen, damit die installierte
 App die neue Fassung lädt.
 
+### Kennungen
+
+Jedes Wort hat eine Kennung aus Abschnitt und Kana, etwa `8-1|あに`; Lernstände
+hängen an dieser Kennung. Eine veröffentlichte Kennung ändert sich deshalb nie:
+
+- **Neue Wörter oder Aufgaben:** danach `node werkzeug/kennungen.js` ausführen. Es
+  nimmt die neuen Kennungen in `tests/kennungen.json` auf, das Verzeichnis aller je
+  veröffentlichten Kennungen.
+- **Wort verschieben oder Lesung korrigieren:** Die alte Kennung kommt mit der neuen
+  als Ziel in `UMLEITUNGEN` (oben in der ID-Bildung von `vokabeln.js`). Die App zieht
+  vorhandene Lernstände dann von selbst um.
+- **Wort entfernen:** nur über eine Umleitung auf ein anderes Wort oder gar nicht.
+
+`node tests/kennungen.test.js` schlägt fehl, sobald eine Kennung ohne Umleitung
+verschwindet oder ein Wort mit gleicher Lesung im selben Abschnitt seine Kennung mit
+einem anderen tauscht. Das gilt auch für die Kennungen der JLPT-Aufgaben, Lesetexte
+und Bilder im Dojo.
+
 ## Dojo ergänzen
 
 **Ein Bildwort** ist eine Zeile in `bilder.js`:
@@ -369,5 +388,7 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `werkzeug/bilder-bauen.js` | baut `bilder.svg` neu |
 | `schrift/` | Ms Madi, die Schrift der Unterschrift unter *Über* (SIL Open Font License 1.1, Text in `schrift/OFL.txt`) |
 | `sw.js` | Offlinebetrieb |
-| `tests/` | Tests für Wiederholungsplan und App (nicht Teil der Website-Funktion) |
+| `tests/` | Tests für Wiederholungsplan, Kennungen und App (nicht Teil der Website-Funktion); `tests/kennungen.json` ist das Verzeichnis aller veröffentlichten Kennungen |
+| `werkzeug/kennungen.js` | nimmt neue Kennungen ins Verzeichnis auf |
+| `ARCHITEKTUR.md` | Zielarchitektur für mehrere Benutzer und Supabase, Datenmodell, Migrationskosten |
 | `manifest.webmanifest` | Angaben für den Home-Bildschirm |
