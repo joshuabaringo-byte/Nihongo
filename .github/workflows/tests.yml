@@ -1,0 +1,31 @@
+name: Tests
+
+# Läuft bei jedem Pull Request und nach jedem Merge in den Hauptzweig.
+# Blockiert das Veröffentlichen nicht; das macht pages.yml unabhängig davon.
+on:
+  pull_request:
+  push:
+    branches:
+      - claude/iphone-vokabeltrainer-website-kf707p
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Wiederholungsplan (nur Node)
+        run: node tests/plan.test.js
+      - name: Playwright mit Chromium einrichten
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: App im Browser
+        run: node tests/app.test.js

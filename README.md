@@ -224,6 +224,10 @@ Einstellungen und Dojo gilt weiter: Der Tab, der zuletzt speichert, gewinnt.
 Browserprofilen; echte Lernstände bleiben unberührt. Playwright einrichten:
 `npm install --no-save playwright && npx playwright install chromium`.
 
+Auf GitHub laufen beide automatisch bei jedem Pull Request und nach jedem Merge
+(`.github/workflows/tests.yml`); das Ergebnis steht am Pull Request. Das
+Veröffentlichen der Website hängt nicht davon ab.
+
 ## Wörter ergänzen
 
 Die Wörter der Topics stehen in `vokabeln.js`, die der JLPT-Stufen in
