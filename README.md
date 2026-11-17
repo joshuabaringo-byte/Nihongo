@@ -194,17 +194,30 @@ vorgemerktes *nochmal* wird zu einem Lernschritt.
 
 ## Lernstand sichern
 
-Unter dem Zahnrad liegt **Stand kopieren**. Der kopierte Text ist der komplette
-Lernstand der Karteikarten; er passt in eine Notiz. Der Stand des Dojos (Stempel,
-gelöste Aufgaben) ist nicht dabei. Zum Zurückholen den Text in das Feld einfügen
-und **Eingefügten Stand laden** tippen.
+Unter dem Zahnrad liegt **Als Datei sichern**. Auf dem iPhone öffnet sich das
+Teilen-Menü; mit *In Dateien sichern*, am besten in iCloud Drive, liegt die Sicherung
+außerhalb der App und übersteht auch einen Gerätewechsel. Wo Teilen nicht geht, wird
+die Datei heruntergeladen. Eine Sicherung enthält Lernstand, Einstellungen und
+Dojo-Fortschritt. Zurück geht es mit **Aus Datei laden**.
 
-Laden ersetzt den ganzen Lernstand, deshalb prüft die App vorher: Ein Text, der
-unlesbar ist, kein Wort dieser App enthält oder dem jetzigen Stand gleicht, wird
-abgelehnt. Sonst fragt sie mit Zahlen nach (wie viele Wörter jetzt und in der
-Sicherung, wie viele gelernte Wörter dort fehlen, wo dein jetziger Stand neuer ist).
-Vor dem Ersetzen bewahrt sie den jetzigen Stand auf; **Vorherigen Stand zurückholen**
-holt ihn wieder (und bewahrt dabei den ersetzten auf).
+Dieselbe Sicherung gibt es als Text: **Stand kopieren** legt sie in die Zwischenablage,
+zum Zurückholen den Text in das Feld einfügen und **Eingefügten Stand laden** tippen.
+Ältere Sicherungen, die nur den Lernstand enthalten, lassen sich weiter laden; dann
+wird nur der Lernstand ersetzt.
+
+Laden ersetzt den ganzen Stand, deshalb prüft die App vorher: Was unlesbar ist, kein
+Wort dieser App enthält oder dem jetzigen Stand gleicht, wird abgelehnt. Sonst fragt
+sie mit Zahlen nach (wie viele Wörter jetzt und in der Sicherung, wie viele gelernte
+Wörter dort fehlen, wo dein jetziger Stand neuer ist, ob Einstellungen und Dojo dabei
+sind). Vor dem Ersetzen bewahrt sie den jetzigen Stand auf; **Vorherigen Stand
+zurückholen** holt ihn wieder (und bewahrt dabei den ersetzten auf). Ändern sich
+Einstellungen oder Dojo, startet die App danach einmal neu. Auch **Alles
+zurücksetzen** lässt sich so rückgängig machen.
+
+**Erinnerung:** Sind mindestens 10 Wörter begonnen, ist die letzte Sicherung
+mindestens 7 Tage her (oder gibt es noch keine) und hast du seitdem gelernt, steht
+über der Karte ein Hinweis mit **Jetzt sichern**. **Später** blendet ihn für 3 Tage
+aus. In den Einstellungen steht, wann zuletzt gesichert wurde.
 
 **Beschädigte Daten:** Lässt sich ein gespeicherter Stand nicht lesen, legt die App
 ihn unverändert unter eigenem Namen ab, bevor sie etwas Neues speichert, und zeigt

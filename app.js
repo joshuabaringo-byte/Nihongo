@@ -25,6 +25,8 @@ var MAXSTUFE = 6;                         // Punkte der Anzeige
 var FEST     = 5;                         // ab dieser Stufe (Abstand ab 17 Tagen) gilt ein Wort als gefestigt
 var K_STAND  = "kotoba-v2";
 var K_EINST  = "kotoba-einst";
+var K_DOJO   = "kotoba-dojo";            // gehört dojo.js; hier nur für die Sicherung
+var K_MELDUNG = "kotoba-meldung";        // sessionStorage: Meldung, die nach einem Neustart erscheint
 /* Frueher benutzte Namen, neueste zuerst. Sie werden einmalig uebernommen,
    damit ein bestehender Lernstand beim Umbenennen nicht verloren geht. */
 var K_FRUEHER       = ["arc-kotoba-v2", "arc-kotoba-v1"];
@@ -820,7 +822,7 @@ function zeichneStand(){
     });
   });
   $("#standListe").innerHTML = html;
-  $("#exportFeld").value = JSON.stringify(stand);
+  $("#exportFeld").value = sicherungText();
 }
 
 /* ---------- Wortlisten ---------- */
@@ -1030,7 +1032,7 @@ function druckblattOeffnen(){
 
 /* ---------- Blätter von unten ---------- */
 function blattAuf(sel){
-  if(sel === "#blatt") zeichneStand();      // Sicherungsfeld frisch befüllen
+  if(sel === "#blatt"){ zeichneStand(); sicherungZeileAnzeigen(); }   // Sicherungsfeld frisch befüllen
   $("#blattgrund").classList.add("auf");
   $(sel).classList.add("auf");
 }
@@ -1077,11 +1079,109 @@ function limitAnzeigen(){
     : "Höchstens " + einst.limit + " Karten pro Durchgang";
 }
 
-/* ---------- Sichern und Laden ---------- */
+/* ---------- Sichern und Laden ----------
+   Eine Sicherung enthält Lernstand, Einstellungen und Dojo:
+     { app: "kotoba", format: 2, erstellt, stand, einst, dojo }
+   Ältere Sicherungen bestehen nur aus dem Lernstand. Sie lassen sich weiter
+   laden und ersetzen dann nur ihn. */
+function sicherungErstellen(){
+  standAuffrischen();
+  return { app: "kotoba", format: 2, erstellt: Date.now(),
+           stand: stand, einst: einst, dojo: hole(K_DOJO, null) };
+}
+function sicherungText(){ return JSON.stringify(sicherungErstellen()); }
+
+/* Gesichert: merken, wann, für die Erinnerung und die Zeile in den Einstellungen. */
+function gesichert(){
+  einst.sicherung = { zuletzt: Date.now() };
+  einstSichern();
+  sicherungZeileAnzeigen();
+  erinnerungAnzeigen();
+}
+function datumText(t){ return new Date(t).toLocaleDateString("de-DE"); }
+function sicherungZeileAnzeigen(){
+  var z = $("#sicherungZeile");
+  if(!z) return;
+  var s = istObjekt(einst.sicherung) ? einst.sicherung : {};
+  z.textContent = +s.zuletzt > 0 ? "Zuletzt gesichert: " + datumText(+s.zuletzt) + "." : "Noch nie gesichert.";
+}
+
+/* Als Datei sichern: auf dem iPhone über das Teilen-Menü ("In Dateien sichern",
+   AirDrop, Mail ...), wo das nicht geht als Download. Abbrechen im
+   Teilen-Menü zählt nicht als Sicherung. */
+function dateiName(){
+  var d = new Date(), zwei = function(n){ return (n < 10 ? "0" : "") + n; };
+  return "kotoba-sicherung-" + d.getFullYear() + "-" + zwei(d.getMonth() + 1) + "-" + zwei(d.getDate()) + ".json";
+}
+function dateiSichern(){
+  var text = sicherungText(), name = dateiName(), datei = null, teilen = false;
+  try{
+    datei = new File([text], name, { type: "application/json" });
+    teilen = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [datei] }));
+  }catch(e){ teilen = false; }
+  if(!teilen){ herunterladen(text, name); return; }
+  navigator.share({ files: [datei], title: "ことば – Sicherung" }).then(function(){
+    gesichert();
+    melde("Sicherung gespeichert");
+  }, function(e){
+    if(e && e.name === "AbortError") melde("Nicht gesichert");
+    else herunterladen(text, name);
+  });
+}
+function herunterladen(text, name){
+  try{
+    var url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+    var a = document.createElement("a");
+    a.href = url; a.download = name; a.style.display = "none";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 30000);
+  }catch(e){
+    melde("Datei ließ sich nicht anlegen – bitte „Stand kopieren“ nutzen");
+    return;
+  }
+  gesichert();
+  melde("Sicherung heruntergeladen");
+}
+
+/* Erinnerung über der Karte: mindestens 10 Wörter begonnen, die letzte
+   Sicherung mindestens 7 Tage her (oder noch keine) und seitdem geantwortet.
+   "Später" blendet sie für 3 Tage aus. Geprüft wird beim Start und bei der
+   Rückkehr in die App, nicht mitten im Durchgang. */
+var ERINNERN_AB = 10, ERINNERN_NACH = 7 * TAG, ERINNERN_PAUSE = 3 * TAG;
+function erinnerungFaellig(){
+  var s = istObjekt(einst.sicherung) ? einst.sicherung : {};
+  var jetzt = Date.now(), zuletzt = +s.zuletzt || 0, erinnert = +s.erinnert || 0;
+  var ids = Object.keys(stand).filter(istWortDerApp);
+  if(ids.length < ERINNERN_AB) return false;
+  if(zuletzt && jetzt - zuletzt < ERINNERN_NACH) return false;
+  if(erinnert && jetzt - erinnert < ERINNERN_PAUSE) return false;
+  return ids.some(function(id){ return (stand[id].zuletzt || 0) > zuletzt; });
+}
+function erinnerungAnzeigen(){
+  var alt = $("#erinnerung");
+  if(alt) alt.parentNode.removeChild(alt);
+  if(!erinnerungFaellig()) return;
+  var zuletzt = +(einst.sicherung || {}).zuletzt || 0;
+  var text = (zuletzt ? "Letzte Sicherung vor " + Math.floor((Date.now() - zuletzt) / TAG) + " Tagen."
+                      : "Noch nie gesichert.")
+    + " Eine Sicherung als Datei, etwa in iCloud Drive, schützt deinen Lernstand, falls er auf "
+    + "dem Gerät verloren geht.";
+  $("#kartenbereich").insertAdjacentHTML("beforebegin", '<div class="info" id="erinnerung">' + text
+    + '<button class="knopf voll" id="erinnerungSichern" style="margin:10px 0 0">Jetzt sichern</button>'
+    + '<button class="knopf" id="erinnerungSpaeter" style="margin:8px 0 0">Später</button></div>');
+  $("#erinnerungSichern").addEventListener("click", dateiSichern);
+  $("#erinnerungSpaeter").addEventListener("click", function(){
+    einst.sicherung = istObjekt(einst.sicherung) ? einst.sicherung : {};
+    einst.sicherung.erinnert = Date.now();
+    einstSichern();
+    erinnerungAnzeigen();
+  });
+}
+
 function standKopieren(){
-  var text = JSON.stringify(stand);
+  var text = sicherungText();
   $("#exportFeld").value = text;
-  var fertig = function(){ melde("Lernstand kopiert"); };
+  var fertig = function(){ gesichert(); melde("Lernstand kopiert"); };
   if(navigator.clipboard && navigator.clipboard.writeText){
     navigator.clipboard.writeText(text).then(fertig, altKopieren);
   }else altKopieren();
@@ -1111,9 +1211,24 @@ function gleicherStand(a, b){
   function sortiert(o){ return JSON.stringify(Object.keys(o).sort().map(function(f){ return [f, o[f]]; })); }
   return ka.every(function(id){ return b[id] && sortiert(a[id]) === sortiert(b[id]); });
 }
+function istObjekt(x){ return !!x && typeof x === "object" && !Array.isArray(x); }
+/* Für Vergleiche von Einstellungen und Dojo: Text mit sortierten Schlüsseln. */
+function sortiertText(x){
+  if(Array.isArray(x)) return "[" + x.map(sortiertText).join(",") + "]";
+  if(istObjekt(x)) return "{" + Object.keys(x).sort().map(function(k){
+    return JSON.stringify(k) + ":" + sortiertText(x[k]);
+  }).join(",") + "}";
+  return String(JSON.stringify(x));
+}
+/* Wann zuletzt gesichert wurde, ist keine Einstellung und zählt beim Vergleich nicht. */
+function ohneSicherung(e){
+  var k = {};
+  Object.keys(e || {}).forEach(function(f){ if(f !== "sicherung") k[f] = e[f]; });
+  return k;
+}
 function vorherAufbewahren(){
   try{
-    var roh = JSON.stringify({ zeit: Date.now(), stand: stand });
+    var roh = JSON.stringify({ zeit: Date.now(), stand: stand, einst: einst, dojo: hole(K_DOJO, null) });
     localStorage.setItem(K_VORHER, roh);
     return localStorage.getItem(K_VORHER) === roh;
   }catch(e){ return false; }
@@ -1126,44 +1241,90 @@ function zurueckholenAnzeigen(){
   var b = $("#knopfZurueckholen");
   if(b) b.hidden = !holeVorher();
 }
-/* Ersetzt den Lernstand, nachdem der jetzige aufbewahrt ist. Scheitert
-   eines von beiden, bleibt alles, wie es war. */
-function standErsetzen(neu, fertig){
+/* Ersetzt den Lernstand und, wenn die Teile sie enthalten, Einstellungen und
+   Dojo, nachdem der jetzige Stand aller drei aufbewahrt ist. Scheitert etwas,
+   bleibt alles, wie es war. Ändern sich Einstellungen oder Dojo, startet die
+   App danach einmal neu, weil das Dojo seinen Stand im Arbeitsspeicher hält. */
+function ersetzen(teile, fertig){
+  var einstNeu = istObjekt(teile.einst) ? teile.einst : null;
+  var dojoNeu  = istObjekt(teile.dojo)  ? teile.dojo  : null;
+  var neustart = (einstNeu && sortiertText(ohneSicherung(einstNeu)) !== sortiertText(ohneSicherung(einst)))
+              || (dojoNeu && sortiertText(dojoNeu) !== sortiertText(hole(K_DOJO, null)));
   if(!vorherAufbewahren()){ melde("Jetziger Stand ließ sich nicht aufbewahren – nichts geändert"); return; }
-  var alt = stand;
-  stand = neu;
-  if(!standSichern()){ stand = alt; melde("Speichern ging nicht – nichts geändert"); return; }
-  alleNeuZeichnen();
-  zurueckholenAnzeigen();
-  melde(fertig);
-}
-function standLaden(){
-  standAuffrischen();                          // mit dem neuesten Stand vergleichen
-  var neu;
-  try{ neu = JSON.parse($("#exportFeld").value.trim()); }catch(e){ neu = null; }
-  if(!neu || typeof neu !== "object" || Array.isArray(neu)){
-    melde("Text nicht lesbar - bitte vollständig einfügen");
+  if(!neustart){
+    var alt = stand;
+    stand = teile.stand;
+    if(!standSichern()){ stand = alt; melde("Speichern ging nicht – nichts geändert"); return; }
+    if(einstNeu){ einst.sicherung = einstNeu.sicherung; einstSichern(); }
+    alleNeuZeichnen();
+    zurueckholenAnzeigen();
+    sicherungZeileAnzeigen();
+    erinnerungAnzeigen();
+    melde(fertig);
     return;
   }
-  neu = normalisiere(neu);
+  var vorher = [K_STAND, K_EINST, K_DOJO].map(function(s){ return [s, rohLesen(s)]; });
+  var ok = legeText(K_STAND, JSON.stringify(teile.stand))
+        && legeText(K_EINST, JSON.stringify(einstNeu || einst))
+        && (!dojoNeu || legeText(K_DOJO, JSON.stringify(dojoNeu)));
+  if(!ok){
+    vorher.forEach(function(p){ if(p[1] === null) entferne(p[0]); else legeText(p[0], p[1]); });
+    melde("Speichern ging nicht – nichts geändert");
+    return;
+  }
+  try{ sessionStorage.setItem(K_MELDUNG, fertig); }catch(e){ /* dann ohne Meldung */ }
+  location.reload();
+}
+function standLaden(){ sicherungLaden($("#exportFeld").value, "Text"); }
+/* Laden aus dem Textfeld oder einer Datei: erst prüfen, ohne etwas
+   anzufassen, dann mit Zahlen nachfragen, dann ersetzen. */
+function sicherungLaden(roh, art){
+  var datei = art === "Datei";
+  standAuffrischen();                          // mit dem neuesten Stand vergleichen
+  var daten;
+  try{ daten = JSON.parse(String(roh).trim()); }catch(e){ daten = null; }
+  var voll = istObjekt(daten) && daten.app === "kotoba";
+  if(!istObjekt(daten) || (voll && !istObjekt(daten.stand))){
+    melde(datei ? "Datei nicht lesbar" : "Text nicht lesbar - bitte vollständig einfügen");
+    return;
+  }
+  var neu = normalisiere(voll ? daten.stand : daten);
   var inSicherung = Object.keys(neu).filter(istWortDerApp);
-  if(!inSicherung.length){ melde("In diesem Text steht kein Lernstand dieser App"); return; }
-  if(gleicherStand(neu, stand)){ melde("Das ist bereits dein aktueller Lernstand"); return; }
+  if(!voll && !inSicherung.length){
+    melde(datei ? "In dieser Datei steht kein Lernstand dieser App" : "In diesem Text steht kein Lernstand dieser App");
+    return;
+  }
+  var einstNeu = voll && istObjekt(daten.einst) ? daten.einst : null;
+  var dojoNeu  = voll && istObjekt(daten.dojo)  ? daten.dojo  : null;
+  if(gleicherStand(neu, stand)
+     && (!einstNeu || sortiertText(ohneSicherung(einstNeu)) === sortiertText(ohneSicherung(einst)))
+     && (!dojoNeu || sortiertText(dojoNeu) === sortiertText(hole(K_DOJO, null)))){
+    melde("Das ist bereits dein aktueller Lernstand");
+    return;
+  }
 
   var jetzt  = Object.keys(stand).filter(istWortDerApp);
   var fehlen = jetzt.filter(function(id){ return !neu[id]; }).length;
   var neuer  = jetzt.filter(function(id){
     return neu[id] && (stand[id].zuletzt || 0) > (neu[id].zuletzt || 0);
   }).length;
-  var frage = "Lernstand ersetzen?\n\n"
+  var teileText = einstNeu && dojoNeu ? "Einstellungen und Dojo-Fortschritt"
+                : einstNeu ? "Einstellungen" : dojoNeu ? "Dojo-Fortschritt" : "";
+  var frage = (voll ? "Sicherung laden?" : "Lernstand ersetzen?") + "\n\n"
     + "Jetzt: " + woerterText(jetzt.length) + " begonnen\n"
-    + "In der Sicherung: " + woerterText(inSicherung.length) + "\n"
+    + "In der Sicherung" + (voll && daten.erstellt > 0 ? " vom " + datumText(daten.erstellt) : "")
+    + ": " + woerterText(inSicherung.length) + "\n"
     + (fehlen ? (fehlen === 1 ? "1 gelerntes Wort fehlt" : fehlen + " gelernte Wörter fehlen") + " in der Sicherung.\n" : "")
     + (neuer ? "Bei " + (neuer === 1 ? "1 Wort" : neuer + " Wörtern") + " ist dein jetziger Stand neuer.\n" : "")
+    + (teileText ? "\n" + teileText + " aus der Sicherung werden ebenfalls übernommen.\n" : "")
     + "\nDein jetziger Stand wird vorher aufbewahrt und lässt sich mit "
     + "„Vorherigen Stand zurückholen“ wiederherstellen.";
   if(!confirm(frage)) return;
-  standErsetzen(neu, "Lernstand geladen");
+  if(einstNeu){
+    einstNeu = Object.assign({}, einstNeu);
+    einstNeu.sicherung = { zuletzt: daten.erstellt > 0 ? +daten.erstellt : Date.now() };
+  }
+  ersetzen({ stand: neu, einst: einstNeu, dojo: dojoNeu }, voll ? "Sicherung geladen" : "Lernstand geladen");
 }
 function vorherZurueckholen(){
   var v = holeVorher();
@@ -1172,17 +1333,15 @@ function vorherZurueckholen(){
   var wann = isFinite(d) ? d.toLocaleDateString("de-DE") + " "
     + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "unbekannt";
   var anzahl = Object.keys(v.stand).filter(istWortDerApp).length;
-  if(!confirm("Den Stand von vor dem letzten Laden zurückholen?\n\n"
+  if(!confirm("Den aufbewahrten Stand zurückholen?\n\n"
     + "Aufbewahrt am " + wann + ", " + woerterText(anzahl) + ".\n\n"
     + "Dein jetziger Stand wird dabei seinerseits aufbewahrt.")) return;
-  standErsetzen(normalisiere(v.stand), "Vorheriger Stand zurückgeholt");
+  ersetzen({ stand: normalisiere(v.stand), einst: v.einst, dojo: v.dojo }, "Vorheriger Stand zurückgeholt");
 }
 function standReset(){
-  if(!confirm("Wirklich den kompletten Lernstand löschen? Das lässt sich nicht rückgängig machen.")) return;
-  stand = {};
-  standSichern();
-  alleNeuZeichnen();
-  melde("Lernstand zurückgesetzt");
+  if(!confirm("Wirklich den kompletten Lernstand löschen?\n\nEr wird vorher aufbewahrt und lässt sich mit "
+    + "„Vorherigen Stand zurückholen“ wiederherstellen.")) return;
+  ersetzen({ stand: {} }, "Lernstand zurückgesetzt");
 }
 function alleNeuZeichnen(){
   schlangeBauen(false);
@@ -1302,6 +1461,21 @@ function verdrahten(){
 
   $("#knopfKopieren").addEventListener("click", standKopieren);
   $("#knopfLaden").addEventListener("click", standLaden);
+  $("#knopfDatei").addEventListener("click", dateiSichern);
+  $("#knopfDateiLaden").addEventListener("click", function(){
+    var f = $("#dateiFeld");
+    f.value = "";                              // dieselbe Datei noch einmal wählen können
+    f.click();
+  });
+  $("#dateiFeld").addEventListener("change", function(){
+    var datei = this.files && this.files[0];
+    if(!datei) return;
+    if(datei.size > 5 * 1024 * 1024){ melde("Datei zu groß für eine Sicherung"); return; }
+    var r = new FileReader();
+    r.onload  = function(){ sicherungLaden(r.result, "Datei"); };
+    r.onerror = function(){ melde("Datei nicht lesbar"); };
+    r.readAsText(datei);
+  });
   var zurueck = $("#knopfZurueckholen");
   if(zurueck) zurueck.addEventListener("click", vorherZurueckholen);
   $("#knopfReset").addEventListener("click", standReset);
@@ -1327,6 +1501,7 @@ function verdrahten(){
     standAuffrischen();                        // ein anderer Tab hat vielleicht geantwortet
     neuHeuteAuffrischen();
     kopfAktualisieren();
+    erinnerungAnzeigen();
     zeichneFilter();
     if(aktiverBereich === "lernen" && !schlange.length && !freiesUeben){
       schlangeBauen(false);
@@ -1482,6 +1657,13 @@ function start(){
       + "nur für diese Sitzung.</div>");
   }
   zeigeRettung();
+  sicherungZeileAnzeigen();
+  erinnerungAnzeigen();
+  // Meldung nach einem Neustart, etwa "Sicherung geladen"
+  try{
+    var nachricht = sessionStorage.getItem(K_MELDUNG);
+    if(nachricht){ sessionStorage.removeItem(K_MELDUNG); melde(nachricht); }
+  }catch(e){ /* dann ohne Meldung */ }
   // dojo.js liest seinen Stand erst nach diesem Start; danach noch einmal nachsehen.
   window.addEventListener("load", zeigeRettung);
 
