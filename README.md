@@ -164,7 +164,12 @@ Bibliothek beides bei der nächsten Antwort neu, als wäre es die erste. Der Abs
 beginnt dann wieder klein und wächst rasch.
 
 **Fällig** wird zum Tageswechsel um vier Uhr früh, nicht auf die Minute: Was du heute um
-19:35 lernst und morgen dran ist, liegt morgen ab vier Uhr bereit.
+19:35 lernst und morgen dran ist, liegt morgen ab vier Uhr bereit. Nach demselben
+Tageswechsel zählt FSRS auch die Tage seit der letzten Antwort, in jeder Zeitzone.
+Steht die Uhr des Geräts zurück, zählt das als 0 Tage.
+
+Lässt sich für ein Wort ausnahmsweise kein Termin berechnen, erscheint statt der
+Antwortknöpfe nur **Überspringen**; das Wort bleibt dann unverändert.
 
 **Neue Wörter pro Tag** sind begrenzt (Einstellungen, Voreinstellung 15). Ohne Grenze
 lernt man an einem Tag Hunderte, und alle kommen am nächsten Tag zusammen wieder. Das
@@ -193,6 +198,31 @@ Unter dem Zahnrad liegt **Stand kopieren**. Der kopierte Text ist der komplette
 Lernstand der Karteikarten; er passt in eine Notiz. Der Stand des Dojos (Stempel,
 gelöste Aufgaben) ist nicht dabei. Zum Zurückholen den Text in das Feld einfügen
 und **Eingefügten Stand laden** tippen.
+
+Laden ersetzt den ganzen Lernstand, deshalb prüft die App vorher: Ein Text, der
+unlesbar ist, kein Wort dieser App enthält oder dem jetzigen Stand gleicht, wird
+abgelehnt. Sonst fragt sie mit Zahlen nach (wie viele Wörter jetzt und in der
+Sicherung, wie viele gelernte Wörter dort fehlen, wo dein jetziger Stand neuer ist).
+Vor dem Ersetzen bewahrt sie den jetzigen Stand auf; **Vorherigen Stand zurückholen**
+holt ihn wieder (und bewahrt dabei den ersetzten auf).
+
+**Beschädigte Daten:** Lässt sich ein gespeicherter Stand nicht lesen, legt die App
+ihn unverändert unter eigenem Namen ab, bevor sie etwas Neues speichert, und zeigt
+über der Karte einen Hinweis mit **Gesicherten Text kopieren**. Gelingt das Ablegen
+nicht (Speicher voll), speichert sie in dieser Sitzung nichts darüber.
+
+**Mehrere Tabs:** Sind zwei Tabs offen, liest jeder vor einer Antwort den Stand des
+anderen ein und ändert nur das eine Wort. Antworten gehen so nicht verloren. Für
+Einstellungen und Dojo gilt weiter: Der Tab, der zuletzt speichert, gewinnt.
+
+## Tests
+
+    node tests/plan.test.js     # Wiederholungsplan, braucht nur Node
+    node tests/app.test.js      # die App im Browser, braucht Playwright mit Chromium
+
+`app.test.js` startet einen eigenen kleinen Webserver und arbeitet in leeren
+Browserprofilen; echte Lernstände bleiben unberührt. Playwright einrichten:
+`npm install --no-save playwright && npx playwright install chromium`.
 
 ## Wörter ergänzen
 
@@ -322,4 +352,5 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `werkzeug/bilder-bauen.js` | baut `bilder.svg` neu |
 | `schrift/` | Ms Madi, die Schrift der Unterschrift unter *Über* (SIL Open Font License 1.1, Text in `schrift/OFL.txt`) |
 | `sw.js` | Offlinebetrieb |
+| `tests/` | Tests für Wiederholungsplan und App (nicht Teil der Website-Funktion) |
 | `manifest.webmanifest` | Angaben für den Home-Bildschirm |

@@ -43,17 +43,48 @@ function tage(n){ return n === 1 ? "1 Tag" : n + " Tage"; }
 /* ---------- Speicher ---------- */
 var speicherOk = true;
 
+/* Unlesbare Inhalte werden nie überschrieben. Sie kommen zuerst unverändert in
+   eine Kopie unter eigenem Namen (etwa "kotoba-v2-unlesbar-1763..."). Gelingt
+   das nicht, schreibt die App in dieser Sitzung nichts unter diesen Namen. */
+var RETTUNG  = "-unlesbar-";
+var gesperrt = {};            // Schlüssel -> unlesbarer Text, der nicht gesichert werden konnte
+
 function hole(schluessel, ersatz){
+  var roh;
+  try{ roh = localStorage.getItem(schluessel); }
+  catch(e){ speicherOk = false; return ersatz; }
+  if(!roh) return ersatz;
   try{
-    var roh = localStorage.getItem(schluessel);
-    if(!roh) return ersatz;
     var d = JSON.parse(roh);
-    return (d && typeof d === "object" && !Array.isArray(d)) ? d : ersatz;
-  }catch(e){ speicherOk = false; return ersatz; }
+    if(d && typeof d === "object" && !Array.isArray(d)) return d;
+  }catch(e){ /* unlesbar, siehe unten */ }
+  retten(schluessel, roh);
+  return ersatz;
 }
-function lege(schluessel, wert){
-  try{ localStorage.setItem(schluessel, JSON.stringify(wert)); }
-  catch(e){ speicherOk = false; }
+function retten(schluessel, roh){
+  try{
+    // Liegt derselbe Text schon gesichert vor, genügt das.
+    for(var i = 0; i < localStorage.length; i++){
+      var n = localStorage.key(i);
+      if(n.indexOf(schluessel + RETTUNG) === 0 && localStorage.getItem(n) === roh) return;
+    }
+    var kopie = schluessel + RETTUNG + Date.now();
+    localStorage.setItem(kopie, roh);
+    if(localStorage.getItem(kopie) === roh) return;
+  }catch(e){ /* nicht gesichert, siehe unten */ }
+  gesperrt[schluessel] = roh;
+}
+function lege(schluessel, wert){ return legeText(schluessel, JSON.stringify(wert)); }
+function legeText(schluessel, text){
+  if(gesperrt[schluessel] !== undefined) return false;   // unlesbar und nicht gesichert: nicht überschreiben
+  try{ localStorage.setItem(schluessel, text); return true; }
+  catch(e){ speicherOk = false; return false; }
+}
+function rohLesen(schluessel){
+  try{ return localStorage.getItem(schluessel); }catch(e){ return null; }
+}
+function gefuellt(schluessel){
+  try{ return !!localStorage.getItem(schluessel); }catch(e){ return false; }
 }
 function entferne(schluessel){
   try{ localStorage.removeItem(schluessel); }catch(e){ /* egal */ }
@@ -64,6 +95,7 @@ function entferne(schluessel){
 function holeMitUebernahme(schluessel, frueher){
   var d = hole(schluessel, null);
   if(d) return d;
+  if(gefuellt(schluessel)) return {};   // vorhanden, aber unlesbar: nichts Älteres darüberlegen
   for(var i = 0; i < frueher.length; i++){
     var altD = hole(frueher[i], null);
     if(!altD || !Object.keys(altD).length) continue;
@@ -76,6 +108,9 @@ function holeMitUebernahme(schluessel, frueher){
 
 var stand = holeMitUebernahme(K_STAND, K_FRUEHER);
 normalisiere(stand);
+/* Mehrere Tabs: Text im Speicher, wie er zuletzt gelesen oder geschrieben wurde.
+   Weicht er ab, hat ein anderer Tab geantwortet (siehe standAuffrischen). */
+var standRoh = rohLesen(K_STAND);
 
 var einst = holeMitUebernahme(K_EINST, K_EINST_FRUEHER);
 if(einst.thema    === undefined) einst.thema    = "auto";
@@ -91,7 +126,26 @@ if(einst.listeStufe === undefined) einst.listeStufe = 0;
 if(einst.neuProTag  === undefined) einst.neuProTag  = 15;
 if(["kana", "de", "kanji"].indexOf(einst.richtung) < 0) einst.richtung = "kana";
 
-function standSichern(){ lege(K_STAND, stand); }
+function standSichern(){
+  var text = JSON.stringify(stand);
+  if(!legeText(K_STAND, text)) return false;
+  standRoh = text;
+  return true;
+}
+/* Sind zwei Tabs offen, hält jeder seinen eigenen Lernstand. Damit keiner die
+   Antworten des anderen überschreibt, liest die App vor jeder Antwort den
+   gespeicherten Stand neu ein, sobald ein anderer Tab ihn geändert hat, und
+   ändert dann nur das eine Wort. Rückgabe: true, wenn sich etwas geändert hat. */
+function standAuffrischen(){
+  var roh = rohLesen(K_STAND);
+  if(roh === null || roh === standRoh) return false;
+  var d;
+  try{ d = JSON.parse(roh); }catch(e){ return false; }
+  if(!d || typeof d !== "object" || Array.isArray(d)) return false;
+  stand = normalisiere(d);
+  standRoh = roh;
+  return true;
+}
 function einstSichern(){ lege(K_EINST, einst); }
 
 /* ---------- Kartenzustand ----------
@@ -138,6 +192,13 @@ function neuHeute(){
   var t = PLAN.tagesbeginn(Date.now());
   if(!einst.neuHeute || einst.neuHeute.tag !== t) einst.neuHeute = { tag: t, n: 0 };
   return einst.neuHeute.n;
+}
+/* Tageszähler eines anderen Tabs übernehmen: Für heute gilt der größere Wert. */
+function neuHeuteAuffrischen(){
+  neuHeute();                                  // legt den Zähler für heute an, falls er fehlt
+  var e = hole(K_EINST, null);
+  if(e && e.neuHeute && e.neuHeute.tag === einst.neuHeute.tag
+     && typeof e.neuHeute.n === "number" && e.neuHeute.n > einst.neuHeute.n) einst.neuHeute.n = e.neuHeute.n;
 }
 function neuFrei(){
   return einst.neuProTag > 0 ? Math.max(0, einst.neuProTag - neuHeute()) : Infinity;
@@ -491,7 +552,9 @@ function zeichneSteuerung(){
     return;
   }
   var k = karte(schlange[0].id);
-  var vs = PLAN.vorschau(k, Date.now());
+  var vs;
+  try{ vs = PLAN.vorschau(k, Date.now()); }
+  catch(e){ zeichneUeberspringen(ziel); return; }
   var frueh = istFrueh(k);
   function knopf(note, name){
     // Zu früh geübt und gewusst ändert den Plan nicht.
@@ -507,6 +570,21 @@ function zeichneSteuerung(){
   $$("#steuerung .tap").forEach(function(b){
     b.addEventListener("click", function(){ bewerte(b.dataset.note); });
   });
+}
+
+/* Lässt sich für ein Wort kein Termin berechnen, wird es nicht bewertet.
+   Statt der Antwortknöpfe gibt es nur "Überspringen"; das Wort bleibt
+   unverändert und kommt beim nächsten Durchgang wieder. */
+function zeichneUeberspringen(ziel){
+  ziel.innerHTML = '<div class="info">Für dieses Wort lässt sich gerade kein Termin berechnen. '
+    + "Es bleibt unverändert.</div>"
+    + '<button class="umdrehknopf" id="ueberspringen">Überspringen</button>';
+  $("#ueberspringen").addEventListener("click", ueberspringen);
+}
+function ueberspringen(){
+  if(!schlange.length) return;
+  schlange.shift();
+  zeichneLernen();
 }
 
 function umdrehen(){
@@ -548,18 +626,29 @@ function uebernehmen(k, n){
 
 function bewerte(note){
   if(!schlange.length || !umgedreht) return;
+  standAuffrischen();                          // hat ein anderer Tab inzwischen geantwortet?
   var v = schlange[0], vorher = karte(v.id);
   var warNeu = PLAN.istNeu(vorher);
   var frueh = istFrueh(vorher);
   var minuten = 0;
+  var s = null;
 
-  schlange.shift();
+  // Erst rechnen, dann die Karte weglegen: scheitert die Rechnung, bleibt
+  // alles, wie es war, und kein anderes Wort wird an ihrer Stelle bewertet.
   if(!(frueh && note !== "nochmal")){
+    try{ s = PLAN.schritt(vorher, note, Date.now()); }
+    catch(e){
+      zeichneSteuerung();
+      melde("Termin ließ sich nicht berechnen – nichts geändert");
+      return;
+    }
+  }
+  schlange.shift();
+  if(s){
     var k = karteSchreiben(v.id);
-    var s = PLAN.schritt(k, note, Date.now());
     uebernehmen(k, s.k);
     minuten = s.minuten;
-    if(warNeu){ neuHeute(); einst.neuHeute.n += 1; einstSichern(); }
+    if(warNeu){ neuHeuteAuffrischen(); einst.neuHeute.n += 1; einstSichern(); }
   }
   if(minuten > 0) nachruecken(v, minuten);     // lernt noch: kommt in dieser Runde wieder
   else getan += 1;
@@ -974,18 +1063,89 @@ function standKopieren(){
     catch(e){ melde("Bitte von Hand markieren und kopieren"); }
   }
 }
-function standLaden(){
-  var roh = $("#exportFeld").value.trim();
+/* Laden ersetzt den ganzen Lernstand. Deshalb: erst prüfen, ohne etwas
+   anzufassen, dann mit Zahlen nachfragen, den jetzigen Stand aufbewahren
+   und erst danach ersetzen. Der aufbewahrte Stand lässt sich mit
+   "Vorherigen Stand zurückholen" wiederherstellen. */
+var K_VORHER = "kotoba-v2-vorher";
+var KENNUNGEN = null;
+function istWortDerApp(id){
+  if(!KENNUNGEN){ KENNUNGEN = {}; V.forEach(function(v){ KENNUNGEN[v.id] = true; }); }
+  return KENNUNGEN[id] === true;
+}
+function woerterText(n){ return n === 1 ? "1 Wort" : n + " Wörter"; }
+/* Gleicher Lernstand? Die Reihenfolge der Einträge und Felder spielt keine Rolle. */
+function gleicherStand(a, b){
+  var ka = Object.keys(a), kb = Object.keys(b);
+  if(ka.length !== kb.length) return false;
+  function sortiert(o){ return JSON.stringify(Object.keys(o).sort().map(function(f){ return [f, o[f]]; })); }
+  return ka.every(function(id){ return b[id] && sortiert(a[id]) === sortiert(b[id]); });
+}
+function vorherAufbewahren(){
   try{
-    var neu = JSON.parse(roh);
-    if(!neu || typeof neu !== "object" || Array.isArray(neu)) throw new Error("Form");
-    stand = normalisiere(neu);
-    standSichern();
-    alleNeuZeichnen();
-    melde("Lernstand geladen");
-  }catch(e){
+    var roh = JSON.stringify({ zeit: Date.now(), stand: stand });
+    localStorage.setItem(K_VORHER, roh);
+    return localStorage.getItem(K_VORHER) === roh;
+  }catch(e){ return false; }
+}
+function holeVorher(){
+  var v = hole(K_VORHER, null);
+  return (v && v.stand && typeof v.stand === "object" && !Array.isArray(v.stand)) ? v : null;
+}
+function zurueckholenAnzeigen(){
+  var b = $("#knopfZurueckholen");
+  if(b) b.hidden = !holeVorher();
+}
+/* Ersetzt den Lernstand, nachdem der jetzige aufbewahrt ist. Scheitert
+   eines von beiden, bleibt alles, wie es war. */
+function standErsetzen(neu, fertig){
+  if(!vorherAufbewahren()){ melde("Jetziger Stand ließ sich nicht aufbewahren – nichts geändert"); return; }
+  var alt = stand;
+  stand = neu;
+  if(!standSichern()){ stand = alt; melde("Speichern ging nicht – nichts geändert"); return; }
+  alleNeuZeichnen();
+  zurueckholenAnzeigen();
+  melde(fertig);
+}
+function standLaden(){
+  standAuffrischen();                          // mit dem neuesten Stand vergleichen
+  var neu;
+  try{ neu = JSON.parse($("#exportFeld").value.trim()); }catch(e){ neu = null; }
+  if(!neu || typeof neu !== "object" || Array.isArray(neu)){
     melde("Text nicht lesbar - bitte vollständig einfügen");
+    return;
   }
+  neu = normalisiere(neu);
+  var inSicherung = Object.keys(neu).filter(istWortDerApp);
+  if(!inSicherung.length){ melde("In diesem Text steht kein Lernstand dieser App"); return; }
+  if(gleicherStand(neu, stand)){ melde("Das ist bereits dein aktueller Lernstand"); return; }
+
+  var jetzt  = Object.keys(stand).filter(istWortDerApp);
+  var fehlen = jetzt.filter(function(id){ return !neu[id]; }).length;
+  var neuer  = jetzt.filter(function(id){
+    return neu[id] && (stand[id].zuletzt || 0) > (neu[id].zuletzt || 0);
+  }).length;
+  var frage = "Lernstand ersetzen?\n\n"
+    + "Jetzt: " + woerterText(jetzt.length) + " begonnen\n"
+    + "In der Sicherung: " + woerterText(inSicherung.length) + "\n"
+    + (fehlen ? (fehlen === 1 ? "1 gelerntes Wort fehlt" : fehlen + " gelernte Wörter fehlen") + " in der Sicherung.\n" : "")
+    + (neuer ? "Bei " + (neuer === 1 ? "1 Wort" : neuer + " Wörtern") + " ist dein jetziger Stand neuer.\n" : "")
+    + "\nDein jetziger Stand wird vorher aufbewahrt und lässt sich mit "
+    + "„Vorherigen Stand zurückholen“ wiederherstellen.";
+  if(!confirm(frage)) return;
+  standErsetzen(neu, "Lernstand geladen");
+}
+function vorherZurueckholen(){
+  var v = holeVorher();
+  if(!v){ zurueckholenAnzeigen(); return; }
+  var d = new Date(v.zeit);
+  var wann = isFinite(d) ? d.toLocaleDateString("de-DE") + " "
+    + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }) : "unbekannt";
+  var anzahl = Object.keys(v.stand).filter(istWortDerApp).length;
+  if(!confirm("Den Stand von vor dem letzten Laden zurückholen?\n\n"
+    + "Aufbewahrt am " + wann + ", " + woerterText(anzahl) + ".\n\n"
+    + "Dein jetziger Stand wird dabei seinerseits aufbewahrt.")) return;
+  standErsetzen(normalisiere(v.stand), "Vorheriger Stand zurückgeholt");
 }
 function standReset(){
   if(!confirm("Wirklich den kompletten Lernstand löschen? Das lässt sich nicht rückgängig machen.")) return;
@@ -1112,6 +1272,8 @@ function verdrahten(){
 
   $("#knopfKopieren").addEventListener("click", standKopieren);
   $("#knopfLaden").addEventListener("click", standLaden);
+  var zurueck = $("#knopfZurueckholen");
+  if(zurueck) zurueck.addEventListener("click", vorherZurueckholen);
   $("#knopfReset").addEventListener("click", standReset);
 
   document.addEventListener("keydown", function(e){
@@ -1132,12 +1294,88 @@ function verdrahten(){
   // Tageswechsel oder Rückkehr in die App: fällige Karten neu bestimmen
   document.addEventListener("visibilitychange", function(){
     if(document.visibilityState !== "visible") return;
+    standAuffrischen();                        // ein anderer Tab hat vielleicht geantwortet
+    neuHeuteAuffrischen();
     kopfAktualisieren();
     zeichneFilter();
     if(aktiverBereich === "lernen" && !schlange.length && !freiesUeben){
       schlangeBauen(false);
       zeichneLernen();
     }
+  });
+
+  // Ein anderer Tab hat gespeichert: Stand und Tageszähler übernehmen und die
+  // Anzeige nachziehen. Die Knöpfe der offenen Karte zeigen danach, was eine
+  // Antwort auf dem neuen Stand bewirkt.
+  window.addEventListener("storage", function(e){
+    var geaendert = false;
+    if(e.key === K_STAND || e.key === null) geaendert = standAuffrischen() || geaendert;
+    if(e.key === K_EINST || e.key === null){ neuHeuteAuffrischen(); geaendert = true; }
+    if(!geaendert) return;
+    kopfAktualisieren();
+    zeichneFilter();
+    if(aktiverBereich === "lernen" && umgedreht && schlange.length) zeichneSteuerung();
+  });
+}
+
+/* ---------- Gesicherte unlesbare Daten ----------
+   Solange es eine Kopie unlesbarer Daten gibt oder Daten nicht gesichert
+   werden konnten, steht über der Karte ein Hinweis. Von dort lässt sich der
+   alte Text kopieren und die Kopie, wenn sie nicht mehr gebraucht wird,
+   verwerfen. */
+function gerettete(){
+  var aus = [];
+  try{
+    for(var i = 0; i < localStorage.length; i++){
+      var n = localStorage.key(i);
+      if(n.indexOf(RETTUNG) > 0) aus.push(n);
+    }
+  }catch(e){ /* dann eben keine */ }
+  return aus.sort();
+}
+function textKopieren(text, fertig){
+  function alt(){
+    var f = document.createElement("textarea");
+    f.value = text; f.setAttribute("readonly", "");
+    f.style.position = "fixed"; f.style.opacity = "0";
+    document.body.appendChild(f);
+    f.focus(); f.setSelectionRange(0, text.length);
+    var ok = false;
+    try{ ok = document.execCommand("copy"); }catch(e){ /* unten */ }
+    document.body.removeChild(f);
+    melde(ok ? fertig : "Kopieren ging nicht");
+  }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(function(){ melde(fertig); }, alt);
+  }else alt();
+}
+function zeigeRettung(){
+  var alt = $("#rettung");
+  if(alt) alt.parentNode.removeChild(alt);
+  var kopien = gerettete(), offen = Object.keys(gesperrt);
+  if(!kopien.length && !offen.length) return;
+  var text = offen.length
+    ? "Gespeicherte Daten sind beschädigt und konnten nicht gesichert werden. Damit nichts "
+      + "verloren geht, speichert die App in dieser Sitzung nichts darüber. Kopiere den alten "
+      + "Text und bewahre ihn auf."
+    : "Gespeicherte Daten waren beschädigt und ließen sich nicht lesen. Sie sind unverändert "
+      + "gesichert, die App hat neu begonnen. Kopiere den gesicherten Text, um ihn aufzubewahren.";
+  $("#kartenbereich").insertAdjacentHTML("beforebegin",
+      '<div class="info" id="rettung">' + text
+    + '<button class="knopf" id="rettungKopieren" style="margin:10px 0 0">Gesicherten Text kopieren</button>'
+    + (offen.length ? "" : '<button class="knopf warn" id="rettungVerwerfen" style="margin:8px 0 0">Kopie verwerfen</button>')
+    + "</div>");
+  $("#rettungKopieren").addEventListener("click", function(){
+    var texte = offen.map(function(s){ return gesperrt[s]; });
+    kopien.forEach(function(n){ try{ texte.push(localStorage.getItem(n)); }catch(e){ /* weiter */ } });
+    textKopieren(texte.join("\n\n"), "Gesicherter Text kopiert");
+  });
+  var weg = $("#rettungVerwerfen");
+  if(weg) weg.addEventListener("click", function(){
+    if(!confirm("Die gesicherte Kopie der beschädigten Daten endgültig löschen? "
+      + "Kopiere sie vorher, falls du sie noch brauchst.")) return;
+    kopien.forEach(entferne);
+    zeigeRettung();
   });
 }
 
@@ -1199,6 +1437,7 @@ function start(){
   verdrahten();
   limitAnzeigen();
   neuAnzeigen();
+  zurueckholenAnzeigen();
   themaSetzen(einst.thema);
   zeichneFilter();
   schlangeBauen(false);
@@ -1210,6 +1449,9 @@ function start(){
       '<div class="info">Dieser Browser speichert gerade nichts dauerhaft. Der Fortschritt gilt '
       + "nur für diese Sitzung.</div>");
   }
+  zeigeRettung();
+  // dojo.js liest seinen Stand erst nach diesem Start; danach noch einmal nachsehen.
+  window.addEventListener("load", zeigeRettung);
 
   if("serviceWorker" in navigator){
     // Uebernimmt ein neuer Service Worker, passt das geladene Skript
