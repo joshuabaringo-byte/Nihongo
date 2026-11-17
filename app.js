@@ -195,10 +195,10 @@ function neuHeute(){
 }
 /* Tageszähler eines anderen Tabs übernehmen: Für heute gilt der größere Wert. */
 function neuHeuteAuffrischen(){
+  neuHeute();                                  // legt den Zähler für heute an, falls er fehlt
   var e = hole(K_EINST, null);
-  if(!e || !e.neuHeute || typeof e.neuHeute.n !== "number") return;
-  neuHeute();
-  if(e.neuHeute.tag === einst.neuHeute.tag && e.neuHeute.n > einst.neuHeute.n) einst.neuHeute.n = e.neuHeute.n;
+  if(e && e.neuHeute && e.neuHeute.tag === einst.neuHeute.tag
+     && typeof e.neuHeute.n === "number" && e.neuHeute.n > einst.neuHeute.n) einst.neuHeute.n = e.neuHeute.n;
 }
 function neuFrei(){
   return einst.neuProTag > 0 ? Math.max(0, einst.neuProTag - neuHeute()) : Infinity;
