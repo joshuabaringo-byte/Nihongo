@@ -577,6 +577,111 @@ function server(){
     await ctx.close();
   });
 
+  /* ================================================================ P3A */
+  if(will("p3a")) await abschnitt("p3a", async () => {
+    console.log("\nP3a Gerätekennung, Profile, Umleitungen");
+    const schluessel = page => page.evaluate(() => Object.keys(localStorage).sort());
+    const lies = (page, k) => page.evaluate(k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return "UNLESBAR"; } }, k);
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const GERAET = "11111111-2222-4333-8444-555555555555";
+    const profilSetzen = (page, p) => page.evaluate(([id, p]) => localStorage.setItem("kotoba-geraet", JSON.stringify({ id: id, profil: p })), [GERAET, p]);
+    const rettungSichtbar = page => page.evaluate(() => { const r = document.querySelector("#rettung"); return !!(r && r.offsetParent); });
+
+    // 1. Gerätekennung
+    let ctx = await profil(), page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    let g = await lies(page, "kotoba-geraet");
+    pruefe("Gerätekennung angelegt (zufällige UUID), Profil \"gast\"", !!g && UUID.test(g.id) && g.profil === "gast", JSON.stringify(g));
+    await page.reload(); await page.waitForTimeout(200);
+    pruefe("Gerätekennung bleibt nach Neustart gleich", !!g && (await lies(page, "kotoba-geraet") || {}).id === g.id);
+
+    // 2. Gast-Profil nutzt die bisherigen Speichernamen
+    await page.click("#umdrehen"); await page.click(".tap.gut"); await page.waitForTimeout(100);
+    let k = await schluessel(page);
+    pruefe("Gast-Profil: Antwort unter dem bisherigen Namen kotoba-v2, keine Profil-Namen",
+      k.indexOf("kotoba-v2") >= 0 && !k.some(x => x.indexOf("kotoba:") === 0), k.join(", "));
+    await ctx.close();
+
+    // 3. Zweites Profil: eigene Speichernamen, Gast-Daten bleiben unberührt
+    ctx = await profil(); page = await seite(ctx);
+    const gastStand = await gelernt(page, 6, 2);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": gastStand, "kotoba-dojo": { blumen: 3 },
+                        "kotoba-geraet": { id: GERAET, profil: "test-a" } });
+    const kopfA = await page.locator("#zaehlerText").innerText();
+    pruefe("Profil test-a sieht die Gast-Daten nicht (" + kopfA + ")", kopfA === "keine fällig · 15 neu", kopfA);
+    await page.click("#umdrehen"); await page.click(".tap.gut"); await page.waitForTimeout(100);
+    await page.click('.leiste button[data-ziel="dojo"]'); await page.waitForTimeout(150);
+    await page.click('#dojoInhalt .dkachel[data-ziel="bild"]'); await page.waitForTimeout(150);
+    await page.locator("#dSpiel .dopt").first().click(); await page.waitForTimeout(200);
+    const stA = await lies(page, "kotoba:test-a:stand"), eiA = await lies(page, "kotoba:test-a:einst"), djA = await lies(page, "kotoba:test-a:dojo");
+    pruefe("Profil test-a: Lernstand, Einstellungen und Dojo unter eigenen Namen",
+      !!stA && Object.keys(stA).length === 1 && !!eiA && !!eiA.neuHeute && !!djA && !!djA.b && Object.keys(djA.b).length === 1,
+      JSON.stringify({ stand: stA && Object.keys(stA).length, einst: !!eiA, dojo: djA && djA.b && Object.keys(djA.b).length }));
+    pruefe("Gast-Daten unverändert (Lernstand, Einstellungen, Dojo)",
+      JSON.stringify(await lies(page, "kotoba-v2")) === JSON.stringify(gastStand)
+      && JSON.stringify(await lies(page, "kotoba-einst")) === JSON.stringify(EINST)
+      && JSON.stringify(await lies(page, "kotoba-dojo")) === JSON.stringify({ blumen: 3 }));
+    page.antwort = "ok";
+    await page.click('.leiste button[data-ziel="lernen"]'); await page.waitForTimeout(100);
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    await page.click("#knopfReset"); await page.waitForTimeout(200);
+    pruefe("Zurücksetzen im Profil: aufbewahrt unter kotoba:test-a:vorher, beim Gast nichts",
+      !!(await lies(page, "kotoba:test-a:vorher")) && (await lies(page, "kotoba-v2-vorher")) === null
+      && Object.keys(await lies(page, "kotoba:test-a:stand") || { x: 1 }).length === 0);
+    await profilSetzen(page, "gast"); await page.reload(); await page.waitForTimeout(250);
+    pruefe("zurück im Gast-Profil: Gast-Daten unverändert, Daten von test-a bleiben erhalten",
+      JSON.stringify(await lies(page, "kotoba-v2")) === JSON.stringify(gastStand) && !!(await lies(page, "kotoba:test-a:vorher")) && page.fehler.length === 0,
+      page.fehler.join(" | "));
+
+    // 4. Ungültige Gerätedaten
+    await page.evaluate(() => localStorage.setItem("kotoba-geraet", JSON.stringify({ id: "kaputt", profil: "../böse" })));
+    await page.reload(); await page.waitForTimeout(200);
+    g = await lies(page, "kotoba-geraet");
+    pruefe("ungültige Gerätedaten: neue UUID, Profil \"gast\"", !!g && UUID.test(g.id) && g.profil === "gast", JSON.stringify(g));
+    k = await schluessel(page);
+    pruefe("kein Speichername aus dem ungültigen Profil", !k.some(x => x.indexOf("böse") >= 0), k.join(", "));
+    await ctx.close();
+
+    // 5. Gesicherte unlesbare Daten bleiben im eigenen Profil
+    ctx = await profil(); page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-geraet": { id: GERAET, profil: "test-b" }, "kotoba:test-b:stand": '{"8-1|あに":{"stufe"' });
+    k = await schluessel(page);
+    pruefe("Profil test-b: unlesbarer Stand unter eigenem Namen gesichert, Hinweis sichtbar",
+      k.some(x => x.indexOf("kotoba:test-b:stand-unlesbar-") === 0) && await rettungSichtbar(page), k.join(", "));
+    await profilSetzen(page, "gast"); await page.reload(); await page.waitForTimeout(200);
+    pruefe("Gast-Profil zeigt den Hinweis von test-b nicht", !(await rettungSichtbar(page)));
+    await profilSetzen(page, "test-b"); await page.reload(); await page.waitForTimeout(200);
+    pruefe("zurück in test-b: Hinweis wieder da", await rettungSichtbar(page));
+    await ctx.close();
+
+    // 6. Umleitungen: Lernstand einer alten Kennung zieht zur neuen um
+    ctx = await profil();
+    await ctx.route("**/vokabeln.js", async r => {
+      const antwort = await r.fetch();
+      const text = (await antwort.text()).replace("const UMLEITUNGEN = {};", 'const UMLEITUNGEN = { "8-1|alt-test": "8-1|あに" };');
+      await r.fulfill({ response: antwort, body: text });
+    });
+    page = await seite(ctx);
+    const alt = (await gelernt(page, 1, 5))["8-1|あに"];
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": { "8-1|alt-test": alt } });
+    const kopfU = await page.locator("#zaehlerText").innerText();
+    await page.click("#umdrehen");
+    pruefe("alter Lernstand unter umgeleiteter Kennung: Wort ist fällig und wird gezeigt (" + kopfU + ")",
+      /^1 fällig/.test(kopfU) && (await gezeigt(page)) === "あに", kopfU + " / " + (await gezeigt(page)));
+    await page.click(".tap.gut"); await page.waitForTimeout(100);
+    let st = await stand(page);
+    pruefe("nach der Antwort: gespeichert unter der neuen Kennung, alte ist weg",
+      !!st["8-1|あに"] && st["8-1|あに"].wdh === alt.wdh + 1 && st["8-1|alt-test"] === undefined, JSON.stringify(Object.keys(st)));
+    const neuStand = (await gelernt(page, 1, 5))["8-1|あに"];
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": { "8-1|alt-test": alt, "8-1|あに": neuStand } });
+    await page.click("#umdrehen"); await page.click(".tap.gut"); await page.waitForTimeout(100);
+    st = await stand(page);
+    pruefe("gibt es beide Kennungen schon, bleibt die alte unangetastet erhalten",
+      JSON.stringify(st["8-1|alt-test"]) === JSON.stringify(alt) && st["8-1|あに"].wdh === neuStand.wdh + 1);
+    pruefe("P3a ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+  });
+
   await browser.close(); srv.close();
   console.log(fehler ? "\n" + fehler + " Prüfung(en) FEHLGESCHLAGEN" : "\nalle Prüfungen bestanden");
   process.exit(fehler ? 1 : 0);
