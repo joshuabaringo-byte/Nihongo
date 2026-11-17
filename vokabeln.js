@@ -969,7 +969,15 @@ if(typeof STUFEN_ROH !== "undefined"){
 
 /* Kennung = Abschnitt|Kana. Zwei Wörter mit gleicher Lesung im selben
    Abschnitt (zwei Zähler ～かい, zwei くれます) bekommen zusätzlich ihre
-   Kanji oder Bedeutung angehängt; das erste behält die schlichte Kennung. */
+   Kanji oder Bedeutung angehängt; das erste behält die schlichte Kennung.
+
+   Lernstände hängen an diesen Kennungen. Eine einmal veröffentlichte
+   Kennung ändert sich deshalb nie. Wird ein Wort verschoben oder seine
+   Lesung korrigiert, kommt die alte Kennung in UMLEITUNGEN, mit der neuen
+   als Ziel; die App zieht Lernstände dann von selbst um. Neue Wörter nach
+   dem Ergänzen ins Verzeichnis aufnehmen: node werkzeug/kennungen.js
+   (tests/kennungen.test.js prüft, dass nichts verloren geht). */
+const UMLEITUNGEN = {};
 const _kennungen = {};
 const V = ROH.map(r => {
   let id = r[0] + "|" + r[1];

@@ -23,9 +23,10 @@ if(!PLAN){
 var TAG      = 86400000;
 var MAXSTUFE = 6;                         // Punkte der Anzeige
 var FEST     = 5;                         // ab dieser Stufe (Abstand ab 17 Tagen) gilt ein Wort als gefestigt
-var K_STAND  = "kotoba-v2";
-var K_EINST  = "kotoba-einst";
-var K_DOJO   = "kotoba-dojo";            // gehört dojo.js; hier nur für die Sicherung
+/* Speichernamen für Lernstand, Einstellungen und Dojo hängen vom Profil ab
+   (siehe "Gerät und Profil" weiter unten). */
+var K_STAND, K_EINST, K_DOJO;
+var K_GERAET = "kotoba-geraet";          // gilt für das Gerät, nicht für ein Profil
 var K_MELDUNG = "kotoba-meldung";        // sessionStorage: Meldung, die nach einem Neustart erscheint
 /* Frueher benutzte Namen, neueste zuerst. Sie werden einmalig uebernommen,
    damit ein bestehender Lernstand beim Umbenennen nicht verloren geht. */
@@ -138,13 +139,53 @@ function holeMitUebernahme(schluessel, frueher){
   return {};
 }
 
-var stand = holeMitUebernahme(K_STAND, K_FRUEHER);
+/* ---------- Gerät und Profil ----------
+   Ein Gerät kann mehrere Profile tragen, später eines je angemeldetem
+   Benutzer. Lernstand, Einstellungen und Dojo liegen je Profil getrennt;
+   kein Profil sieht oder überschreibt die Daten eines anderen. Das
+   Gast-Profil nutzt die bisherigen Speichernamen, damit nichts umkopiert
+   werden muss; jedes andere Profil bekommt "kotoba:<profil>:<name>".
+   Die Gerätekennung ist zufällig und sagt nichts über den Benutzer. */
+var GAST = "gast";
+var GAST_NAMEN = { stand: "kotoba-v2", einst: "kotoba-einst", dojo: "kotoba-dojo", vorher: "kotoba-v2-vorher" };
+function neueKennung(){
+  try{ if(window.crypto && crypto.randomUUID) return crypto.randomUUID(); }catch(e){ /* unten */ }
+  var b = new Uint8Array(16), i;
+  try{ crypto.getRandomValues(b); }catch(e){ for(i = 0; i < 16; i++) b[i] = Math.floor(Math.random() * 256); }
+  b[6] = (b[6] & 15) | 64; b[8] = (b[8] & 63) | 128;       // Version 4, Variante 1
+  var h = "";
+  for(i = 0; i < 16; i++) h += (b[i] < 16 ? "0" : "") + b[i].toString(16);
+  return h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20);
+}
+function gueltigesProfil(p){ return typeof p === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(p); }
+var geraet = (function(){
+  var g = hole(K_GERAET, {}), vorher = JSON.stringify(g);
+  if(typeof g.id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(g.id)) g.id = neueKennung();
+  if(!gueltigesProfil(g.profil)) g.profil = GAST;
+  if(JSON.stringify(g) !== vorher) lege(K_GERAET, g);
+  return g;
+})();
+function schluessel(name){
+  return geraet.profil === GAST ? (GAST_NAMEN[name] || "kotoba-" + name)
+                                : "kotoba:" + geraet.profil + ":" + name;
+}
+/* Gehört ein Speichername zum aktiven Profil? */
+function zumProfil(n){
+  return geraet.profil === GAST ? n.indexOf("kotoba:") !== 0
+                                : n.indexOf("kotoba:" + geraet.profil + ":") === 0;
+}
+K_STAND = schluessel("stand");
+K_EINST = schluessel("einst");
+K_DOJO  = schluessel("dojo");
+
+var gast = geraet.profil === GAST;       // nur das Gast-Profil übernimmt Daten aus früheren Fassungen
+var stand = holeMitUebernahme(K_STAND, gast ? K_FRUEHER : []);
 normalisiere(stand);
 /* Mehrere Tabs: Text im Speicher, wie er zuletzt gelesen oder geschrieben wurde.
    Weicht er ab, hat ein anderer Tab geantwortet (siehe standAuffrischen). */
 var standRoh = rohLesen(K_STAND);
 
-var einst = holeMitUebernahme(K_EINST, K_EINST_FRUEHER);
+var einst = holeMitUebernahme(K_EINST, gast ? K_EINST_FRUEHER : []);
 if(einst.thema    === undefined) einst.thema    = "auto";
 if(einst.romaji   === undefined) einst.romaji   = true;
 if(einst.ton      === undefined) einst.ton      = false;
@@ -188,7 +229,17 @@ var VORGABE = { stufe: 0, faellig: 0, fehler: 0 };
 
 /* Nimmt auch Stände aus früheren Fassungen und ergänzt, was fehlt;
    Einzelheiten in plan.js. */
+/* Umgeleitete Kennungen (UMLEITUNGEN in vokabeln.js): Der Lernstand zieht zur
+   neuen Kennung um. Gibt es dort schon einen, bleibt der alte unangetastet. */
+function umleiten(d){
+  if(typeof UMLEITUNGEN === "undefined") return;
+  Object.keys(UMLEITUNGEN).forEach(function(alt){
+    var neu = UMLEITUNGEN[alt];
+    if(d[alt] !== undefined && d[neu] === undefined){ d[neu] = d[alt]; delete d[alt]; }
+  });
+}
 function normalisiere(d){
+  umleiten(d);
   Object.keys(d).forEach(function(id){
     if(!PLAN.normalisieren(d[id])) delete d[id];
   });
@@ -1197,7 +1248,7 @@ function standKopieren(){
    anzufassen, dann mit Zahlen nachfragen, den jetzigen Stand aufbewahren
    und erst danach ersetzen. Der aufbewahrte Stand lässt sich mit
    "Vorherigen Stand zurückholen" wiederherstellen. */
-var K_VORHER = "kotoba-v2-vorher";
+var K_VORHER = schluessel("vorher");
 var KENNUNGEN = null;
 function istWortDerApp(id){
   if(!KENNUNGEN){ KENNUNGEN = {}; V.forEach(function(v){ KENNUNGEN[v.id] = true; }); }
@@ -1533,7 +1584,7 @@ function gerettete(){
   try{
     for(var i = 0; i < localStorage.length; i++){
       var n = localStorage.key(i);
-      if(n.indexOf(RETTUNG) > 0) aus.push(n);
+      if(n.indexOf(RETTUNG) > 0 && zumProfil(n)) aus.push(n);   // nur die des aktiven Profils
     }
   }catch(e){ /* dann eben keine */ }
   return aus.sort();
@@ -1686,7 +1737,7 @@ function start(){
 
 /* Was der Zusatz in dojo.js vom Trainer braucht. */
 window.KOTOBA = {
-  esc: esc, einst: einst, hole: hole, lege: lege,
+  esc: esc, einst: einst, hole: hole, lege: lege, schluessel: schluessel,
   sprich: sprich, spracheDa: spracheDa, melde: melde,
   blattAuf: blattAuf, blattZu: blattZu, passeAn: passeAn
 };

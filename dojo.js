@@ -19,7 +19,7 @@ function $(s){ return document.querySelector(s); }
 function $$(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
 
 var RUNDE  = 10;                 // Fragen je Durchgang
-var K_DOJO = "kotoba-dojo";
+var K_DOJO = K.schluessel ? K.schluessel("dojo") : "kotoba-dojo";   // je Profil getrennt
 
 /* ---------- Stand ----------
    Getrennt vom Lernstand der Karteikarten: was hier passiert, verschiebt
