@@ -118,6 +118,10 @@ Vorschlag, umgesetzt in Paket 4; bis dahin gilt alles je Profil auf einem Gerät
 
 ## 6. Supabase (Paket 4, Entwurf)
 
+Region: Tokio (`ap-northeast-1`), nah an den heutigen Nutzern in Japan. Auch für Nutzer
+in der EU ist ein Standort in Japan grundsätzlich unproblematisch, weil die EU Japan ein
+angemessenes Datenschutzniveau bescheinigt hat.
+
 ### Tabellen, Row Level Security
 
 ```sql
@@ -235,9 +239,20 @@ alter table public.dojo_stand    enable row level security;
 - Eigener E-Mail-Versand: Der Standard-Versand von Supabase schickt nur wenige Mails pro
   Stunde und nur an Mitglieder des Projekts.
 - Missbrauchsschutz: Captcha, Obergrenze für die Datenmenge je Konto.
-- Schrift selbst ausliefern: Google Fonts von Google-Servern ist in Deutschland
-  datenschutzrechtlich heikel.
-- Impressum, Datenschutzerklärung, Auftragsverarbeitungsvertrag mit Supabase.
+- Schrift selbst ausliefern: Heute lädt die App ihre Schrift von Google-Servern. Selbst
+  ausgeliefert funktioniert sie auch offline, und es geht keine Anfrage an Dritte; für
+  Nutzer in der EU ist das zusätzlich datenschutzrechtlich ratsam.
+- Rechtliches hängt davon ab, wo die App betrieben wird und an wen sie sich richtet:
+  - Betrieben aus Japan gilt das japanische Datenschutzgesetz (APPI, 個人情報保護法):
+    offenlegen, wofür Daten wie die E-Mail-Adresse genutzt werden, und sie schützen. Für
+    die Speicherung bei einem Anbieter mit Sitz im Ausland (Supabase, USA) gelten
+    zusätzliche Pflichten.
+  - Richtet sich die App gezielt an Menschen in der EU (naheliegend, weil sie auf Deutsch
+    ist), gilt zusätzlich die DSGVO: Datenschutzerklärung, Vertrag zur
+    Auftragsverarbeitung mit Supabase.
+  - Kostenpflichtige Angebote bräuchten in Japan außerdem die Angaben nach dem Gesetz
+    über bestimmte Handelsgeschäfte (特定商取引法).
+  - Vor einer Veröffentlichung lohnt eine rechtliche Prüfung; das hier ist keine.
 - Bezahlter Supabase-Tarif (derzeit etwa 25 US-Dollar im Monat), damit das Projekt nicht
   pausiert und Backups hat. Kostenlose Projekte pausieren nach etwa einer Woche ohne
   Nutzung.

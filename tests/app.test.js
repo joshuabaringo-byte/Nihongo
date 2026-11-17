@@ -1,12 +1,13 @@
-/* Tests der App im Browser (Audit C1, C2, C6, C7)
+/* Tests der App im Browser
 
-   Aufruf:  node tests/app.test.js [c1] [c2] [c6] [c7]     (ohne Angabe: alle)
+   Aufruf:  node tests/app.test.js [c1] [c2] [c4] [c5] [c6] [c7] [p2] [p3a]   (ohne Angabe: alle)
    Braucht Node (ab Version 18) und Playwright mit Chromium:
      npm install --no-save playwright && npx playwright install chromium
    Der Test startet selbst einen kleinen Webserver für den Ordner des Repos.
    Jeder Abschnitt läuft in einem frischen, leeren Browserprofil; echte
    Lernstände werden nicht berührt. Fremde Adressen (Google Fonts) werden
-   blockiert, der Service Worker ist abgeschaltet.
+   blockiert, der Service Worker ist abgeschaltet. Der Browser läuft in
+   japanischer Zeit; eine andere Zeitzone mit TEST_ZEITZONE=Europe/Berlin.
 
    C1  Wiederherstellen überschreibt nie ohne Prüfung und Bestätigung
    C2  Ein Rechenfehler bewertet kein Wort, das nicht angezeigt wurde
@@ -55,7 +56,7 @@ function server(){
   const browser = await chromium.launch();
 
   async function profil(){
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: "Europe/Berlin",
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: process.env.TEST_ZEITZONE || "Asia/Tokyo",
       serviceWorkers: "block", permissions: ["clipboard-read", "clipboard-write"] });
     await ctx.route("**/*", r => r.request().url().startsWith(BASIS) ? r.continue() : r.abort());
     return ctx;
