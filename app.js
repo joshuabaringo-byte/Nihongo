@@ -1429,8 +1429,10 @@ function start(){
     anpassUhr = setTimeout(karteAnpassen, 120);
   });
 
-  // gespeicherter Filter kann auf einen leeren Problemfilter zeigen
-  if(einst.filter.art === "problem" && !V.filter(istProblem).length){
+  // Ein gespeicherter Filter gilt nur, wenn es ihn in der Auswahl gibt: Abschnitte
+  // können umbenannt werden, und der Problemfilter kann inzwischen leer sein.
+  var f0 = einst.filter;
+  if(!f0 || typeof f0 !== "object" || !filterListe().some(function(f){ return gleicherFilter(f, f0); })){
     einst.filter = { art: "alle", wert: 0 };
   }
 

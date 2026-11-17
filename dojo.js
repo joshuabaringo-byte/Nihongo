@@ -456,6 +456,23 @@ var ZARTEN = {
   lage:  { name: "Lage",     zeichen: "上" }
 };
 
+/* Gespeicherte Auswahl nur übernehmen, wenn es den Wert noch gibt; sonst gilt
+   die Vorgabe. Ein umbenannter Bildersatz oder ein Tippfehler in einer
+   Sicherung darf das Dojo nicht am Öffnen hindern. */
+(function(){
+  var vorher = JSON.stringify(w);
+  function erlaubt(wert, liste){ return liste.indexOf(wert) >= 0; }
+  if(!erlaubt(w.satz, satzListe().map(function(s){ return s.k; }))) w.satz = MEINE.length >= 6 ? "meine" : "alle";
+  if(!erlaubt(w.richtung, ["bw", "wb"].concat(K.spracheDa ? ["hb"] : []))) w.richtung = "bw";
+  if(!Object.prototype.hasOwnProperty.call(ZARTEN, w.zart)) w.zart = "mix";
+  if(!erlaubt(w.schrift, SCHRIFT_FOLGE)) w.schrift = "furi";
+  if(!w.kreis || typeof w.kreis !== "object") w.kreis = {};
+  [5, 4].forEach(function(st){
+    if(!Object.prototype.hasOwnProperty.call(JLPT_KREISE, w.kreis[st])) w.kreis[st] = "alle";
+  });
+  if(JSON.stringify(w) !== vorher) sichern();
+})();
+
 var ERZEUGER = {
   uhr: function(){
     function wert(h, m){
