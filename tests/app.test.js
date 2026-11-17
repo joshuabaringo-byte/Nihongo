@@ -786,9 +786,10 @@ function server(){
     const nachher = await stand(page), id1 = Object.keys(st3).find(i => i.endsWith("|" + w1));
     pruefe("Rückgängig (Wiederholung): Stand wie vorher, erledigt " + getanNach + " -> " + (await page.locator("#sitzungText").innerText()),
       JSON.stringify(nachher[id1]) === JSON.stringify(st3[id1]) && getanNach === "1" && (await page.locator("#sitzungText").innerText()) === "0", id1);
-    await setze(page, { "kotoba-einst": Object.assign({}, EINST, { neuProTag: 5 }), "kotoba-v2": { [Object.keys(st3)[0]]: st3[Object.keys(st3)[0]] } });
-    await page.evaluate(() => { const e = JSON.parse(localStorage.getItem("kotoba-einst")); e.neuProTag = 0; e.limit = 1; localStorage.setItem("kotoba-einst", JSON.stringify(e)); });
-    await page.reload(); await page.waitForTimeout(250);
+    // ein einziges fälliges Problemwort, Auswahl "Problemwörter": danach ist der Durchgang fertig
+    const id0 = Object.keys(st3)[0];
+    await setze(page, { "kotoba-einst": Object.assign({}, EINST, { filter: { art: "problem", wert: 0 } }),
+                        "kotoba-v2": { [id0]: Object.assign({}, st3[id0], { fehler: 2 }) } });
     await page.click("#umdrehen"); await page.click(".tap.leicht"); await page.waitForTimeout(150);
     pruefe("letzte Karte des Durchgangs: Rückgängig auch auf der Fertig-Ansicht", (await page.locator(".leer").count()) === 1 && await knopfDa(page, "#rueckgaengig"));
     await page.click("#rueckgaengig"); await page.waitForTimeout(150);

@@ -6,10 +6,11 @@
 (function () {
 "use strict";
 
-/* Der Wiederholungsplan liegt in plan.js. Fehlt er, stammen index.html und
-   app.js aus verschiedenen Ständen: einmal neu laden bringt sie zusammen. */
-var PLAN = window.PLAN;
-if(!PLAN){
+/* Der Wiederholungsplan liegt in plan.js, die Antwort-Historie in verlauf.js.
+   Fehlt eines, stammen index.html und app.js aus verschiedenen Ständen:
+   einmal neu laden bringt sie zusammen. */
+var PLAN = window.PLAN, VERLAUF = window.VERLAUF;
+if(!PLAN || !VERLAUF){
   try{
     if(!sessionStorage.getItem("kotoba-neu-geladen")){
       sessionStorage.setItem("kotoba-neu-geladen", "plan");
@@ -185,6 +186,99 @@ normalisiere(stand);
    Weicht er ab, hat ein anderer Tab geantwortet (siehe standAuffrischen). */
 var standRoh = rohLesen(K_STAND);
 
+/* ---------- Antwort-Historie speichern ----------
+   Jede Antwort wird als Lernereignis festgehalten (verlauf.js, ARCHITEKTUR.md).
+   Gespeichert wird je Profil in Teilen von höchstens TEIL_GROESSE Ereignissen;
+   beim Antworten wird nur der jüngste Teil gelesen und geschrieben. Ein
+   Verzeichnis (Name schluessel("ereignisse")) nennt die Teile und ihre Größe.
+   Vor dem Anhängen wird immer frisch gelesen, damit zwei offene Tabs sich
+   nichts überschreiben. Scheitert das Speichern, bleiben die Ereignisse
+   vorgemerkt und gehen beim nächsten Mal mit. */
+var K_EREIGNISSE = schluessel("ereignisse");
+var TEIL_GROESSE = 500;
+var EREIGNIS_GRENZE = (typeof window.KOTOBA_EREIGNIS_GRENZE === "number" && window.KOTOBA_EREIGNIS_GRENZE > 0)
+                      ? window.KOTOBA_EREIGNIS_GRENZE : 2000000;   // Zeichen; Tests setzen eine kleinere Grenze
+var ausstehend = [];
+
+function umleitungen(){ return typeof UMLEITUNGEN === "undefined" ? {} : UMLEITUNGEN; }
+function teilName(n){ return schluessel("ereignisse-" + n); }
+function verlaufVerzeichnis(){
+  var m = hole(K_EREIGNISSE, null);
+  if(!m || !Array.isArray(m.teile)) m = { format: 1, teile: [], groessen: {}, naechster: 0 };
+  if(!m.groessen || typeof m.groessen !== "object") m.groessen = {};
+  if(!(m.naechster >= 0)) m.naechster = m.teile.length ? Math.max.apply(null, m.teile) + 1 : 0;
+  return m;
+}
+function teilLesen(n){ return VERLAUF.auspacken(hole(teilName(n), null)); }
+function alleEreignisse(){
+  var alle = [];
+  verlaufVerzeichnis().teile.forEach(function(n){ alle = alle.concat(teilLesen(n)); });
+  return alle.concat(ausstehend);
+}
+/* Hängt Ereignisse an. vormerken = false: scheitert es, wird nichts vorgemerkt
+   (für Änderungen, die dann ganz unterbleiben). Rückgabe: gespeichert? */
+function ereignisseAnhaengen(neue, vormerken){
+  var vorher = ausstehend, alle = ausstehend.concat(neue || []);
+  if(!alle.length) return true;
+  var m = verlaufVerzeichnis();
+  var nr = m.teile.length ? m.teile[m.teile.length - 1] : -1;
+  var liste = nr >= 0 ? teilLesen(nr) : [];
+  var rest = alle.slice(), ok = true;
+  while(rest.length && ok){
+    if(nr < 0 || liste.length >= TEIL_GROESSE){ nr = m.naechster++; m.teile.push(nr); liste = []; }
+    liste = liste.concat(rest.splice(0, TEIL_GROESSE - liste.length));
+    var text = JSON.stringify(VERLAUF.packen(liste));
+    ok = legeText(teilName(nr), text);
+    if(ok) m.groessen[nr] = text.length;
+  }
+  if(ok) ok = legeText(K_EREIGNISSE, JSON.stringify(m));
+  if(ok){ ausstehend = []; verlaufBegrenzen(m); }
+  else ausstehend = vormerken === false ? vorher : alle;
+  return ok;
+}
+/* Schreibt die ganze Historie neu (nach dem Zusammenfassen). Die alten Teile
+   werden erst gelöscht, wenn die neuen sicher liegen. */
+function verlaufErsetzen(liste, m){
+  var neu = { format: 1, teile: [], groessen: {}, naechster: m.naechster, uebernommen: m.uebernommen, zusammengefasst: Date.now() };
+  for(var i = 0; i < liste.length; i += TEIL_GROESSE){
+    var nr = neu.naechster++, text = JSON.stringify(VERLAUF.packen(liste.slice(i, i + TEIL_GROESSE)));
+    if(!legeText(teilName(nr), text)) return false;
+    neu.teile.push(nr); neu.groessen[nr] = text.length;
+  }
+  if(!legeText(K_EREIGNISSE, JSON.stringify(neu))) return false;
+  m.teile.forEach(function(n){ entferne(teilName(n)); });
+  return true;
+}
+/* Wird die Historie größer als EREIGNIS_GRENZE, werden die ältesten drei Viertel
+   zu je einer Übernahme pro Wort zusammengefasst. Der Stand bleibt exakt gleich. */
+function verlaufBegrenzen(m){
+  var summe = 0;
+  m.teile.forEach(function(n){ summe += m.groessen[n] || 0; });
+  if(summe <= EREIGNIS_GRENZE) return;
+  var alle = VERLAUF.vereinigen(alleEreignisse());
+  if(alle.length < 4) return;
+  var grenze = alle[Math.floor(alle.length * 3 / 4)].zeit;
+  var neu = VERLAUF.zusammenfassen(alle, grenze, neueKennung, geraet.id, PLAN.VERSION, umleitungen());
+  if(neu.length < alle.length && verlaufErsetzen(neu, m)){
+    melde("Ältere Antworten zusammengefasst – der Lernstand bleibt gleich");
+  }
+}
+/* Beim ersten Start mit Historie: der vorhandene Stand je Wort als Übernahme,
+   genau einmal. Die Zeit ist die der letzten Antwort des Wortes. */
+function verlaufAnlegen(){
+  var m = verlaufVerzeichnis();
+  if(m.uebernommen) return;
+  var ev = Object.keys(stand).map(function(id){
+    var k = stand[id], zeit = k.zuletzt > 0 ? k.zuletzt : 0;
+    return VERLAUF.uebernahme(neueKennung(), id, k, zeit, typeof k.tag === "number" ? k.tag : PLAN.lerntag(zeit),
+                              geraet.id, PLAN.VERSION);
+  });
+  if(!ereignisseAnhaengen(ev, false)) return;          // beim nächsten Start noch einmal
+  m = verlaufVerzeichnis();
+  m.uebernommen = Date.now();
+  legeText(K_EREIGNISSE, JSON.stringify(m));
+}
+
 var einst = holeMitUebernahme(K_EINST, gast ? K_EINST_FRUEHER : []);
 if(einst.thema    === undefined) einst.thema    = "auto";
 if(einst.romaji   === undefined) einst.romaji   = true;
@@ -270,18 +364,13 @@ function zaehle(liste){
 }
 
 /* Neue Wörter pro Tag: ohne Grenze lernt man an einem Tag Hunderte, und alle
-   kommen am selben Tag wieder. Gezählt wird ab dem Tageswechsel um vier Uhr. */
+   kommen am selben Tag wieder. Gezählt werden die Wörter, deren erste Antwort
+   auf den heutigen Lerntag fällt (Feld erst im Lernstand). So stimmt die Zahl
+   über Tabs und Geräte hinweg, ohne eigenen Zähler. */
 function neuHeute(){
-  var t = PLAN.tagesbeginn(Date.now());
-  if(!einst.neuHeute || einst.neuHeute.tag !== t) einst.neuHeute = { tag: t, n: 0 };
-  return einst.neuHeute.n;
-}
-/* Tageszähler eines anderen Tabs übernehmen: Für heute gilt der größere Wert. */
-function neuHeuteAuffrischen(){
-  neuHeute();                                  // legt den Zähler für heute an, falls er fehlt
-  var e = hole(K_EINST, null);
-  if(e && e.neuHeute && e.neuHeute.tag === einst.neuHeute.tag
-     && typeof e.neuHeute.n === "number" && e.neuHeute.n > einst.neuHeute.n) einst.neuHeute.n = e.neuHeute.n;
+  var heute = PLAN.lerntag(Date.now()), n = 0;
+  for(var id in stand){ if(stand[id].erst === heute) n++; }
+  return n;
 }
 function neuFrei(){
   return einst.neuProTag > 0 ? Math.max(0, einst.neuProTag - neuHeute()) : Infinity;
@@ -505,6 +594,7 @@ function zeichneFilter(){
 }
 
 function setzeFilter(f){
+  letzteAntwort = null;                         // neue Auswahl: nichts mehr rückgängig zu machen
   einst.filter = f;
   einstSichern();
   zeichneFilter();
@@ -630,7 +720,7 @@ function zeichneSteuerung(){
   var ziel = $("#steuerung");
   zeichneBeispiel();
   if(!umgedreht){
-    ziel.innerHTML = '<button class="umdrehknopf" id="umdrehen">Antwort zeigen</button>';
+    ziel.innerHTML = '<button class="umdrehknopf" id="umdrehen">Antwort zeigen</button>' + rueckgaengigKnopf();
     $("#umdrehen").addEventListener("click", umdrehen);
     return;
   }
@@ -711,15 +801,15 @@ function bewerte(note){
   if(!schlange.length || !umgedreht) return;
   standAuffrischen();                          // hat ein anderer Tab inzwischen geantwortet?
   var v = schlange[0], vorher = karte(v.id);
-  var warNeu = PLAN.istNeu(vorher);
   var frueh = istFrueh(vorher);
   var minuten = 0;
   var s = null;
+  var jetzt = Date.now(), heute = PLAN.lerntag(jetzt);
 
   // Erst rechnen, dann die Karte weglegen: scheitert die Rechnung, bleibt
   // alles, wie es war, und kein anderes Wort wird an ihrer Stelle bewertet.
   if(!(frueh && note !== "nochmal")){
-    try{ s = PLAN.schritt(vorher, note, Date.now()); }
+    try{ s = PLAN.schritt(vorher, note, jetzt, heute); }
     catch(e){
       zeichneSteuerung();
       melde("Termin ließ sich nicht berechnen – nichts geändert");
@@ -727,14 +817,20 @@ function bewerte(note){
     }
   }
   schlange.shift();
+  letzteAntwort = null;
   if(s){
+    // Erst das Ereignis, dann der Stand: Die Historie geht dem Stand nie verloren.
+    var ev = VERLAUF.antwort(neueKennung(), v.id, note, jetzt, heute, geraet.id, PLAN.VERSION);
+    ereignisseAnhaengen([ev]);
+    letzteAntwort = { ereignis: ev, v: v, zaehlte: false,
+                      vorher: stand[v.id] ? JSON.parse(JSON.stringify(stand[v.id])) : undefined };
     var k = karteSchreiben(v.id);
     uebernehmen(k, s.k);
     minuten = s.minuten;
-    if(warNeu){ neuHeuteAuffrischen(); einst.neuHeute.n += 1; einstSichern(); }
   }
+  // Früh geübt und gewusst ("unverändert") ändert nichts und wird nicht festgehalten.
   if(minuten > 0) nachruecken(v, minuten);     // lernt noch: kommt in dieser Runde wieder
-  else getan += 1;
+  else{ getan += 1; if(letzteAntwort) letzteAntwort.zaehlte = true; }
 
   standSichern();
   kopfAktualisieren();
@@ -743,11 +839,43 @@ function bewerte(note){
   zeichneLernen();
 }
 
+/* ---------- Letzte Antwort rückgängig ----------
+   Ein Schritt: Das Wort bekommt den Stand vor der Antwort zurück, kommt wieder
+   nach vorne, und ein Ereignis "widerruf" hält es fest. Nur bis zum Neuladen
+   und nur, solange das Wort seitdem nicht anders beantwortet wurde. */
+var letzteAntwort = null;
+function rueckgaengigKnopf(){
+  return letzteAntwort ? '<button class="rueckgaengig nichtdrucken" id="rueckgaengig">↶ Rückgängig</button>' : "";
+}
+function rueckgaengig(){
+  var l = letzteAntwort;
+  if(!l) return;
+  letzteAntwort = null;
+  standAuffrischen();
+  var jetztK = stand[l.v.id];
+  if(!jetztK || jetztK.zuletzt !== l.ereignis.zeit){
+    melde("Rückgängig geht nicht mehr – das Wort wurde inzwischen anders beantwortet");
+    zeichneLernen();
+    return;
+  }
+  var jetzt = Date.now();
+  ereignisseAnhaengen([VERLAUF.widerruf(neueKennung(), l.ereignis.id, l.v.id, jetzt, PLAN.lerntag(jetzt), geraet.id, PLAN.VERSION)]);
+  if(l.vorher === undefined) delete stand[l.v.id]; else stand[l.v.id] = l.vorher;
+  standSichern();
+  schlange = schlange.filter(function(x){ return x.id !== l.v.id; });   // auch die Wiederkehr aus den Lernschritten
+  schlange.unshift(l.v);
+  if(l.zaehlte && getan > 0) getan -= 1;
+  umgedreht = false;
+  kopfAktualisieren();
+  zeichneFilter();
+  zeichneLernen();
+}
+
 function leerAnsicht(){
   var basis = auswahl();
   if(!basis.length){
     return '<div class="leer"><span class="zeichen jp">空</span>'
-      + "In dieser Auswahl liegt noch kein Wort.</div>";
+      + "In dieser Auswahl liegt noch kein Wort.</div>" + rueckgaengigKnopf();
   }
   var termine = basis.map(function(v){ return karte(v.id).faellig; })
                      .filter(function(f){ return f > 0; });
@@ -768,7 +896,8 @@ function leerAnsicht(){
   return '<div class="leer"><span class="zeichen jp">完</span>'
     + geschafft + wann + "</div>"
     + '<button class="knopf nichtdrucken" id="weiterUeben" style="margin-top:16px">'
-    + "Trotzdem weiterüben</button>";
+    + "Trotzdem weiterüben</button>"
+    + rueckgaengigKnopf();
 }
 
 /* ---------- Wischgesten auf der Karte ---------- */
@@ -873,7 +1002,6 @@ function zeichneStand(){
     });
   });
   $("#standListe").innerHTML = html;
-  $("#exportFeld").value = sicherungText();
 }
 
 /* ---------- Wortlisten ---------- */
@@ -1083,7 +1211,7 @@ function druckblattOeffnen(){
 
 /* ---------- Blätter von unten ---------- */
 function blattAuf(sel){
-  if(sel === "#blatt"){ zeichneStand(); sicherungZeileAnzeigen(); }   // Sicherungsfeld frisch befüllen
+  if(sel === "#blatt"){ $("#exportFeld").value = sicherungText(); sicherungZeileAnzeigen(); }   // Sicherungsfeld frisch befüllen
   $("#blattgrund").classList.add("auf");
   $(sel).classList.add("auf");
 }
@@ -1137,8 +1265,9 @@ function limitAnzeigen(){
    laden und ersetzen dann nur ihn. */
 function sicherungErstellen(){
   standAuffrischen();
-  return { app: "kotoba", format: 2, erstellt: Date.now(),
-           stand: stand, einst: einst, dojo: hole(K_DOJO, null) };
+  return { app: "kotoba", format: 3, erstellt: Date.now(),
+           stand: stand, einst: einst, dojo: hole(K_DOJO, null),
+           ereignisse: VERLAUF.packen(VERLAUF.vereinigen(alleEreignisse())) };
 }
 function sicherungText(){ return JSON.stringify(sicherungErstellen()); }
 
@@ -1302,6 +1431,21 @@ function ersetzen(teile, fertig){
   var neustart = (einstNeu && sortiertText(ohneSicherung(einstNeu)) !== sortiertText(ohneSicherung(einst)))
               || (dojoNeu && sortiertText(dojoNeu) !== sortiertText(hole(K_DOJO, null)));
   if(!vorherAufbewahren()){ melde("Jetziger Stand ließ sich nicht aufbewahren – nichts geändert"); return; }
+  // Historie: mitgebrachte Ereignisse übernehmen, jedes geänderte Wort als Übernahme
+  // festhalten. Lässt sich das nicht speichern, unterbleibt die ganze Änderung.
+  var jetzt = Date.now(), heute = PLAN.lerntag(jetzt), ev = [], bekannt = {}, woerter = {};
+  if(teile.ereignisse && teile.ereignisse.length){
+    alleEreignisse().forEach(function(e){ bekannt[e.id] = true; });
+    teile.ereignisse.forEach(function(e){ if(!bekannt[e.id]){ bekannt[e.id] = true; ev.push(e); } });
+  }
+  Object.keys(stand).concat(Object.keys(teile.stand)).forEach(function(w){ woerter[w] = true; });
+  Object.keys(woerter).forEach(function(w){
+    var a = stand[w], b = teile.stand[w];
+    if(a && b && sortiertText(a) === sortiertText(b)) return;
+    ev.push(VERLAUF.uebernahme(neueKennung(), w, b || null, jetzt, heute, geraet.id, PLAN.VERSION));
+  });
+  if(!ereignisseAnhaengen(ev, false)){ melde("Historie ließ sich nicht speichern – nichts geändert"); return; }
+  letzteAntwort = null;
   if(!neustart){
     var alt = stand;
     stand = teile.stand;
@@ -1375,7 +1519,9 @@ function sicherungLaden(roh, art){
     einstNeu = Object.assign({}, einstNeu);
     einstNeu.sicherung = { zuletzt: daten.erstellt > 0 ? +daten.erstellt : Date.now() };
   }
-  ersetzen({ stand: neu, einst: einstNeu, dojo: dojoNeu }, voll ? "Sicherung geladen" : "Lernstand geladen");
+  ersetzen({ stand: neu, einst: einstNeu, dojo: dojoNeu,
+             ereignisse: voll ? VERLAUF.auspacken(daten.ereignisse) : [] },     // Format 3 bringt die Historie mit
+           voll ? "Sicherung geladen" : "Lernstand geladen");
 }
 function vorherZurueckholen(){
   var v = holeVorher();
@@ -1435,6 +1581,7 @@ function verdrahten(){
       if(!schlange.length) melde("In dieser Auswahl liegt kein Wort");
       zeichneLernen();
     }
+    if(e.target.closest("#rueckgaengig")) rueckgaengig();
   });
 
   $("#standListe").addEventListener("click", function(e){
@@ -1550,7 +1697,6 @@ function verdrahten(){
   document.addEventListener("visibilitychange", function(){
     if(document.visibilityState !== "visible") return;
     standAuffrischen();                        // ein anderer Tab hat vielleicht geantwortet
-    neuHeuteAuffrischen();
     kopfAktualisieren();
     erinnerungAnzeigen();
     zeichneFilter();
@@ -1560,14 +1706,11 @@ function verdrahten(){
     }
   });
 
-  // Ein anderer Tab hat gespeichert: Stand und Tageszähler übernehmen und die
-  // Anzeige nachziehen. Die Knöpfe der offenen Karte zeigen danach, was eine
-  // Antwort auf dem neuen Stand bewirkt.
+  // Ein anderer Tab hat gespeichert: Stand übernehmen und die Anzeige nachziehen
+  // (der Tageszähler neuer Wörter ergibt sich aus dem Stand). Die Knöpfe der
+  // offenen Karte zeigen danach, was eine Antwort auf dem neuen Stand bewirkt.
   window.addEventListener("storage", function(e){
-    var geaendert = false;
-    if(e.key === K_STAND || e.key === null) geaendert = standAuffrischen() || geaendert;
-    if(e.key === K_EINST || e.key === null){ neuHeuteAuffrischen(); geaendert = true; }
-    if(!geaendert) return;
+    if(!(e.key === K_STAND || e.key === null) || !standAuffrischen()) return;
     kopfAktualisieren();
     zeichneFilter();
     if(aktiverBereich === "lernen" && umgedreht && schlange.length) zeichneSteuerung();
@@ -1662,6 +1805,7 @@ function zeigeStartfehler(){
 
 /* ---------- Start ---------- */
 function start(){
+  verlaufAnlegen();                             // einmalig: vorhandenen Stand in die Historie übernehmen
   document.documentElement.setAttribute("data-thema", einst.thema);
   // Nummerierte Topics als Spanne, benannte Gruppen davor beim Namen nennen.
   var benannt = TOPICS.filter(function(t){ return TOPICNAMEN[t]; })

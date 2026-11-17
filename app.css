@@ -472,6 +472,12 @@ h3:first-child{margin-top:2px;}
   color:var(--text);font-weight:700;font-size:.98rem;
 }
 .umdrehknopf:active{background:var(--flaeche-2);transform:scale(.99);}
+/* Kleiner Textknopf unter "Antwort zeigen": letzte Antwort rückgängig */
+.rueckgaengig{
+  display:block;margin:8px auto 0;padding:8px 16px;border-radius:var(--r-m);
+  color:var(--grau);font-size:.85rem;font-weight:600;
+}
+.rueckgaengig:active{background:var(--flaeche-2);}
 
 /* Sitzungsfortschritt */
 .sitzung{
