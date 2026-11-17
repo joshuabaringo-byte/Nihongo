@@ -80,6 +80,11 @@ function server(){
   }
   const roh = (page, k) => page.evaluate(k => localStorage.getItem(k), k);
   const stand = async page => { const r = await roh(page, "kotoba-v2"); try{ return JSON.parse(r || "{}"); }catch(e){ return null; } };
+  /* Neue Wörter heute: Einträge im Lernstand, deren erste Antwort auf den heutigen Lerntag fällt */
+  const neuHeute = (page, k) => page.evaluate(k => {
+    const h = PLAN.lerntag(Date.now()), st = JSON.parse(localStorage.getItem(k || "kotoba-v2") || "{}");
+    return Object.keys(st).filter(id => st[id].erst === h).length;
+  }, k);
   const gezeigt = page => page.evaluate(() => { const w = document.querySelector("#kartenbereich .seite.rueck .wort.jp"); return w ? w.textContent : null; });
   const meldung = page => page.evaluate(() => document.querySelector("#meldung").textContent);
   const woerter = (page, n) => page.evaluate(n => V.filter(v => v.ab === "8-1").slice(0, n).map(v => ({ id: v.id, kana: v.kana })), n);
@@ -283,12 +288,12 @@ function server(){
     await b.click("#umdrehen"); const gezeigtB = await gezeigt(b); await b.click(".tap.leicht"); await b.waitForTimeout(150);
     let st = await stand(a);
     pruefe("A 2 Wörter (" + gezeigtA.join(", ") + "), B 1 Wort (" + gezeigtB + "): alle 3 gespeichert", Object.keys(st).length === 3 && Object.values(st).every(k => k.wdh === 1 && k.st === 2), Object.keys(st).length);
-    let einst = JSON.parse(await roh(a, "kotoba-einst"));
-    pruefe("Tageszähler neue Wörter = 3", einst.neuHeute && einst.neuHeute.n === 3, JSON.stringify(einst.neuHeute));
+    let n = await neuHeute(a);
+    pruefe("Tageszähler neue Wörter = 3", n === 3, n);
     for(let i = 0; i < 2; i++){ await b.click("#umdrehen"); await b.click(".tap.leicht"); }
     await b.waitForTimeout(150);
-    st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
-    pruefe("danach B noch 2: 5 Wörter gespeichert, Tageszähler 5", Object.keys(st).length === 5 && einst.neuHeute.n === 5, Object.keys(st).length + " / " + JSON.stringify(einst.neuHeute));
+    st = await stand(a); n = await neuHeute(a);
+    pruefe("danach B noch 2: 5 Wörter gespeichert, Tageszähler 5", Object.keys(st).length === 5 && n === 5, Object.keys(st).length + " / " + n);
     pruefe("C7 ohne Fehler der Seiten", a.fehler.length + b.fehler.length === 0, a.fehler.concat(b.fehler).join(" | "));
     await ctx.close();
 
@@ -298,8 +303,8 @@ function server(){
     await setze(a, { "kotoba-einst": Object.assign({}, EINST, { neuProTag: 0 }) });
     for(let i = 0; i < 3; i++){ await a.keyboard.press("Space"); await a.keyboard.press("4"); }
     await a.waitForTimeout(150);
-    st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
-    pruefe("ohne Begrenzung (alle): 3 Antworten gespeichert, Tageszähler 3", Object.keys(st).length === 3 && einst.neuHeute && einst.neuHeute.n === 3, Object.keys(st).length + " / " + JSON.stringify(einst.neuHeute));
+    st = await stand(a); n = await neuHeute(a);
+    pruefe("ohne Begrenzung (alle): 3 Antworten gespeichert, Tageszähler 3", Object.keys(st).length === 3 && n === 3, Object.keys(st).length + " / " + n);
     pruefe("ohne Begrenzung: keine Fehler der Seite", a.fehler.length === 0, a.fehler.join(" | "));
     await ctx.close();
 
@@ -314,9 +319,9 @@ function server(){
     const knopfB = await b.evaluate(() => document.querySelector("#steuerung .tap.leicht .klein").textContent);
     pruefe("Tab B: Knopf \"leicht\" zeigt nach der Antwort in A \"unverändert\"", knopfB === "unverändert", knopfB);
     await b.click(".tap.leicht"); await b.waitForTimeout(150);
-    st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
+    st = await stand(a); n = await neuHeute(a);
     pruefe("dasselbe Wort " + x + ", in A schon fertig: Antwort in B ändert den Plan nicht", x === xb && JSON.stringify(st) === JSON.stringify(nachA), JSON.stringify(st));
-    pruefe("und zählt nicht doppelt als neues Wort", einst.neuHeute && einst.neuHeute.n === 1, JSON.stringify(einst.neuHeute));
+    pruefe("und zählt nicht doppelt als neues Wort", n === 1, n);
     await ctx.close();
 
     // Dasselbe Wort, in A erst im Lernschritt: beide Antworten zählen nacheinander
@@ -327,10 +332,10 @@ function server(){
     const wb = await (async () => { await b.click("#umdrehen"); return gezeigt(b); })();
     await a.click(".tap.gut"); await a.waitForTimeout(100);
     await b.click(".tap.leicht"); await b.waitForTimeout(100);
-    st = await stand(a); einst = JSON.parse(await roh(a, "kotoba-einst"));
+    st = await stand(a); n = await neuHeute(a);
     const k = Object.values(st)[0] || {};
     pruefe("dasselbe Wort " + wa + " in A (sitzt) und B (leicht): beide Antworten nacheinander gerechnet", wa === wb && Object.keys(st).length === 1 && k.wdh === 2, JSON.stringify(k));
-    pruefe("dasselbe Wort: zählt einmal als neues Wort", einst.neuHeute && einst.neuHeute.n === 1, JSON.stringify(einst.neuHeute));
+    pruefe("dasselbe Wort: zählt einmal als neues Wort", n === 1, n);
     await ctx.close();
   });
 
@@ -436,7 +441,7 @@ function server(){
     const name = dl.suggestedFilename();
     let inhalt = {}; try{ inhalt = JSON.parse(fs.readFileSync(await dl.path(), "utf8")); }catch(e){ /* bleibt leer */ }
     pruefe("Datei " + name + ": Name mit Datum", /^kotoba-sicherung-\d{4}-\d{2}-\d{2}\.json$/.test(name), name);
-    pruefe("Datei enthält Lernstand (12 Wörter), Einstellungen und Dojo", inhalt.app === "kotoba" && inhalt.format === 2
+    pruefe("Datei enthält Lernstand (12 Wörter), Einstellungen und Dojo", inhalt.app === "kotoba" && inhalt.format === 3
       && JSON.stringify(inhalt.stand) === JSON.stringify(st12) && inhalt.einst && inhalt.einst.neuProTag === 20 && inhalt.dojo && inhalt.dojo.blumen === 7,
       JSON.stringify(Object.keys(inhalt)));
     let e = await einstLesen(page);
@@ -614,9 +619,11 @@ function server(){
     await page.click('.leiste button[data-ziel="dojo"]'); await page.waitForTimeout(150);
     await page.click('#dojoInhalt .dkachel[data-ziel="bild"]'); await page.waitForTimeout(150);
     await page.locator("#dSpiel .dopt").first().click(); await page.waitForTimeout(200);
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    await page.click("#schalterRomaji"); await page.click("#blattZu"); await page.waitForTimeout(100);
     const stA = await lies(page, "kotoba:test-a:stand"), eiA = await lies(page, "kotoba:test-a:einst"), djA = await lies(page, "kotoba:test-a:dojo");
     pruefe("Profil test-a: Lernstand, Einstellungen und Dojo unter eigenen Namen",
-      !!stA && Object.keys(stA).length === 1 && !!eiA && !!eiA.neuHeute && !!djA && !!djA.b && Object.keys(djA.b).length === 1,
+      !!stA && Object.keys(stA).length === 1 && !!eiA && eiA.romaji === false && !!djA && !!djA.b && Object.keys(djA.b).length === 1,
       JSON.stringify({ stand: stA && Object.keys(stA).length, einst: !!eiA, dojo: djA && djA.b && Object.keys(djA.b).length }));
     pruefe("Gast-Daten unverändert (Lernstand, Einstellungen, Dojo)",
       JSON.stringify(await lies(page, "kotoba-v2")) === JSON.stringify(gastStand)
@@ -680,6 +687,155 @@ function server(){
     pruefe("gibt es beide Kennungen schon, bleibt die alte unangetastet erhalten",
       JSON.stringify(st["8-1|alt-test"]) === JSON.stringify(alt) && st["8-1|あに"].wdh === neuStand.wdh + 1);
     pruefe("P3a ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+  });
+
+  /* ================================================================ P3B */
+  if(will("p3b")) await abschnitt("p3b", async () => {
+    console.log("\nP3b Antwort-Historie");
+    /* Alle Ereignisse eines Profils (Gast: kotoba-ereignisse, Teile kotoba-ereignisse-<n>) */
+    const verlaufLesen = (page, name) => page.evaluate(name => {
+      const meta = JSON.parse(localStorage.getItem(name) || "null");
+      let alle = [];
+      ((meta && meta.teile) || []).forEach(n => { const t = JSON.parse(localStorage.getItem(name + "-" + n) || "null"); if(t) alle = alle.concat(VERLAUF.auspacken(t)); });
+      return { meta: meta, ereignisse: alle };
+    }, name || "kotoba-ereignisse");
+    /* Ergibt Nachrechnen aus der Historie genau den gespeicherten Stand? */
+    const passt = page => page.evaluate(() => {
+      const sort = x => Array.isArray(x) ? "[" + x.map(sort).join(",") + "]"
+        : (x && typeof x === "object") ? "{" + Object.keys(x).sort().map(k => JSON.stringify(k) + ":" + sort(x[k])).join(",") + "}" : String(JSON.stringify(x));
+      const meta = JSON.parse(localStorage.getItem("kotoba-ereignisse") || "null");
+      let alle = [];
+      ((meta && meta.teile) || []).forEach(n => { const t = JSON.parse(localStorage.getItem("kotoba-ereignisse-" + n) || "null"); if(t) alle = alle.concat(VERLAUF.auspacken(t)); });
+      const st = JSON.parse(localStorage.getItem("kotoba-v2") || "{}");
+      const r = JSON.parse(JSON.stringify(VERLAUF.nachrechnen(alle, UMLEITUNGEN)));
+      return { gleich: sort(st) === sort(r), stand: Object.keys(st).length, nachgerechnet: Object.keys(r).length, ereignisse: alle.length };
+    });
+    const ohneTeilen = () => { delete Navigator.prototype.share; delete Navigator.prototype.canShare; };
+    const neuLaden = async (page, fn) => { const nav = page.waitForNavigation({ timeout: 5000 }).catch(() => null); await fn(); await nav; await page.waitForTimeout(250); };
+    const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const knopfDa = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return !!(e && e.offsetParent); }, sel);
+
+    // 1. Antworten erzeugen Ereignisse
+    let ctx = await profil(), page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    let v = await verlaufLesen(page);
+    pruefe("leerer Start: Historie angelegt, keine Ereignisse", !!v.meta && v.meta.uebernommen > 0 && v.ereignisse.length === 0, JSON.stringify(v.meta));
+    const woerter = [];
+    for(const taste of ["3", "3", "4"]){ await page.keyboard.press("Space"); woerter.push(await gezeigt(page)); await page.keyboard.press(taste); }
+    await page.waitForTimeout(100);
+    v = await verlaufLesen(page);
+    const geraetId = (await page.evaluate(() => JSON.parse(localStorage.getItem("kotoba-geraet")))).id;
+    const plan = await page.evaluate(() => PLAN.VERSION);
+    const ok1 = v.ereignisse.length === 3 && v.ereignisse.every(e => e.art === "antwort" && UUID.test(e.id) && e.geraet === geraetId && e.plan === plan)
+      && JSON.stringify(v.ereignisse.map(e => e.bewertung)) === "[3,3,4]"
+      && await page.evaluate(ev => ev.every(e => e.tag === PLAN.lerntag(e.zeit)), v.ereignisse);
+    pruefe("drei Antworten: drei Ereignisse mit Kennung, Bewertung, Lerntag, Gerät und Plan-Version", ok1, JSON.stringify(v.ereignisse.map(e => [e.art, e.bewertung, e.wort])));
+    let p = await passt(page);
+    pruefe("Nachrechnen aus der Historie = gespeicherter Stand", p.gleich, JSON.stringify(p));
+    pruefe("Tageszähler: 3 neue Wörter heute", (await neuHeute(page)) === 3, await neuHeute(page));
+    await ctx.close();
+
+    // 2. Übernahme beim ersten Start, genau einmal
+    ctx = await profil(); page = await seite(ctx);
+    const st12 = await gelernt(page, 12, 2);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": st12 });
+    v = await verlaufLesen(page);
+    const ok2 = v.ereignisse.length === 12 && v.ereignisse.every(e => e.art === "uebernahme" && JSON.stringify(e.daten) === JSON.stringify(st12[e.wort]));
+    pruefe("vorhandener Stand: je Wort eine Übernahme mit genau diesem Stand", ok2, v.ereignisse.length);
+    await page.reload(); await page.waitForTimeout(200); await page.reload(); await page.waitForTimeout(200);
+    pruefe("nach zwei Neustarts keine weiteren Übernahmen", (await verlaufLesen(page)).ereignisse.length === 12);
+    p = await passt(page);
+    pruefe("Nachrechnen = gespeicherter Stand", p.gleich, JSON.stringify(p));
+
+    // 3. Zurücksetzen, Zurückholen, Laden einer alten Sicherung
+    page.antwort = "ok";
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    await page.click("#knopfReset"); await page.waitForTimeout(200);
+    v = await verlaufLesen(page); p = await passt(page);
+    pruefe("Zurücksetzen: Übernahmen ohne Stand für alle 12 Wörter, Historie passt", v.ereignisse.filter(e => e.art === "uebernahme" && e.daten === null).length === 12 && p.gleich && p.stand === 0, JSON.stringify(p));
+    await page.click("#knopfZurueckholen"); await page.waitForTimeout(300);
+    p = await passt(page);
+    pruefe("Zurückholen: Historie passt wieder zu den 12 Wörtern", p.gleich && p.stand === 12, JSON.stringify(p));
+    const alt2 = {}; Object.keys(st12).slice(0, 2).forEach(id => { alt2[id] = Object.assign({}, st12[id], { fehler: 5 }); });
+    await page.fill("#exportFeld", JSON.stringify(alt2)); await page.click("#knopfLaden"); await page.waitForTimeout(300);
+    p = await passt(page);
+    pruefe("alte Sicherung geladen: Historie passt zum Stand (2 Wörter)", p.gleich && p.stand === 2, JSON.stringify(p));
+    pruefe("Teil 1-3 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 4. Rückgängig
+    ctx = await profil(); page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    pruefe("am Anfang kein Rückgängig-Knopf", !(await knopfDa(page, "#rueckgaengig")));
+    await page.click("#umdrehen"); const erstes = await gezeigt(page); await page.click(".tap.gut"); await page.waitForTimeout(100);
+    pruefe("nach einer Antwort: Rückgängig-Knopf unter \"Antwort zeigen\"", await knopfDa(page, "#rueckgaengig") && await knopfDa(page, "#umdrehen"));
+    await page.click("#rueckgaengig"); await page.waitForTimeout(150);
+    await page.click("#umdrehen");
+    v = await verlaufLesen(page); p = await passt(page);
+    pruefe("Rückgängig (neues Wort): Wort " + erstes + " wieder vorne, nicht mehr im Stand, Tageszähler 0",
+      (await gezeigt(page)) === erstes && Object.keys(await stand(page)).length === 0 && (await neuHeute(page)) === 0, await gezeigt(page));
+    pruefe("Historie: Antwort und Widerruf, Nachrechnen = Stand", v.ereignisse.length === 2 && v.ereignisse[1].art === "widerruf" && v.ereignisse[1].daten === v.ereignisse[0].id && p.gleich,
+      JSON.stringify(v.ereignisse.map(e => e.art)));
+    pruefe("nach dem Rückgängigmachen kein zweiter Schritt", !(await knopfDa(page, "#rueckgaengig")));
+    const st3 = await gelernt(page, 3, 5);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": st3 });
+    await page.click("#umdrehen"); const w1 = await gezeigt(page); await page.click(".tap.leicht"); await page.waitForTimeout(100);
+    const getanNach = await page.locator("#sitzungText").innerText();
+    await page.click("#rueckgaengig"); await page.waitForTimeout(150);
+    const nachher = await stand(page), id1 = Object.keys(st3).find(i => i.endsWith("|" + w1));
+    pruefe("Rückgängig (Wiederholung): Stand wie vorher, erledigt " + getanNach + " -> " + (await page.locator("#sitzungText").innerText()),
+      JSON.stringify(nachher[id1]) === JSON.stringify(st3[id1]) && getanNach === "1" && (await page.locator("#sitzungText").innerText()) === "0", id1);
+    await setze(page, { "kotoba-einst": Object.assign({}, EINST, { neuProTag: 5 }), "kotoba-v2": { [Object.keys(st3)[0]]: st3[Object.keys(st3)[0]] } });
+    await page.evaluate(() => { const e = JSON.parse(localStorage.getItem("kotoba-einst")); e.neuProTag = 0; e.limit = 1; localStorage.setItem("kotoba-einst", JSON.stringify(e)); });
+    await page.reload(); await page.waitForTimeout(250);
+    await page.click("#umdrehen"); await page.click(".tap.leicht"); await page.waitForTimeout(150);
+    pruefe("letzte Karte des Durchgangs: Rückgängig auch auf der Fertig-Ansicht", (await page.locator(".leer").count()) === 1 && await knopfDa(page, "#rueckgaengig"));
+    await page.click("#rueckgaengig"); await page.waitForTimeout(150);
+    pruefe("dort Rückgängig: Karte wieder da", (await page.locator("#umdrehen").count()) === 1);
+    await page.click("#umdrehen"); await page.click(".tap.gut"); await page.waitForTimeout(100);
+    await page.reload(); await page.waitForTimeout(250);
+    pruefe("nach Neustart kein Rückgängig-Knopf", !(await knopfDa(page, "#rueckgaengig")));
+    pruefe("Teil 4 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 5. Sicherung Format 3 mit Historie, in einem neuen Browserprofil geladen
+    ctx = await profil(); await ctx.addInitScript(ohneTeilen);
+    page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST, "kotoba-v2": st12 });
+    for(let i = 0; i < 3; i++){ await page.keyboard.press("Space"); await page.keyboard.press("3"); }
+    await page.waitForTimeout(100);
+    const zahlVorher = (await verlaufLesen(page)).ereignisse.length;
+    const standVorher = await stand(page);
+    await page.click("#knopfEinstellungen"); await page.waitForTimeout(150);
+    const [dl] = await Promise.all([page.waitForEvent("download"), page.click("#knopfDatei")]);
+    const text = fs.readFileSync(await dl.path(), "utf8");
+    let s3 = {}; try{ s3 = JSON.parse(text); }catch(e){ /* bleibt leer */ }
+    const zahlDatei = await page.evaluate(t => { try{ return VERLAUF.auspacken(JSON.parse(t).ereignisse).length; }catch(e){ return -1; } }, text);
+    pruefe("Sicherung Format 3 enthält die Historie (" + zahlDatei + " Ereignisse)", s3.format === 3 && zahlDatei === zahlVorher && zahlVorher === 15, zahlDatei + " / " + zahlVorher);
+    await ctx.close();
+    ctx = await profil(); page = await seite(ctx);
+    page.antwort = "ok";
+    await neuLaden(page, async () => {
+      await page.setInputFiles("#dateiFeld", { name: "s.json", mimeType: "application/json", buffer: Buffer.from(text) });
+    });
+    v = await verlaufLesen(page); p = await passt(page);
+    pruefe("geladen in neues Profil: Stand wie gesichert, Historie übernommen und passend",
+      JSON.stringify(await stand(page)) === JSON.stringify(standVorher) && v.ereignisse.length >= zahlVorher && p.gleich, JSON.stringify(p));
+    await ctx.close();
+
+    // 6. Zusammenfassen ab einer (für den Test kleinen) Grenze
+    ctx = await profil(); await ctx.addInitScript(() => { window.KOTOBA_EREIGNIS_GRENZE = 6000; });
+    page = await seite(ctx);
+    await setze(page, { "kotoba-einst": Object.assign({}, EINST, { neuProTag: 0, limit: 0 }), "kotoba-v2": st12 });
+    let antworten = 0;
+    for(let i = 0; i < 40; i++){ await page.keyboard.press("Space"); await page.keyboard.press(String(1 + (i % 4))); antworten++; }
+    await page.waitForTimeout(150);
+    v = await verlaufLesen(page); p = await passt(page);
+    const groesse = await page.evaluate(() => { const m = JSON.parse(localStorage.getItem("kotoba-ereignisse")); return m.teile.reduce((a, n) => a + (localStorage.getItem("kotoba-ereignisse-" + n) || "").length, 0); });
+    pruefe("Zusammenfassen: unter der Grenze (" + groesse + " Zeichen), weniger Ereignisse als Antworten + Übernahmen, Stand unverändert passend",
+      !!v.meta.zusammengefasst && groesse <= 6000 && v.ereignisse.length < antworten + 12 && p.gleich, JSON.stringify({ groesse: groesse, ereignisse: v.ereignisse.length, p: p }));
+    pruefe("Teil 5-6 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
     await ctx.close();
   });
 
