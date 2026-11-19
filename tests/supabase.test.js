@@ -171,8 +171,9 @@ function strukturPruefen(){
     pruefe("B sieht auch gezielt nach A gefiltert nichts", nichtsGelesen(r), kurz(r));
 
     // Nicht ändern, nicht löschen
-    const unveraendert = async () => { const x = await alle("lern_ereignisse", "id=eq." + e1.id);
-      return x.length === 1 && x[0].bewertung === 3 && x[0].user_id === A.id; };
+    // Das Ereignis e1 von A, genau einmal und unverändert (B darf später eine eigene Zeile mit derselben Kennung haben)
+    const unveraendert = async () => { const x = await alle("lern_ereignisse", "id=eq." + e1.id + "&user_id=eq." + A.id);
+      return x.length === 1 && x[0].bewertung === 3; };
     r = await anfrage("PATCH", "/rest/v1/lern_ereignisse?id=eq." + e1.id, { token: A.token, daten: { bewertung: 1 } });
     pruefe("A kann das eigene Ereignis nicht ändern", await unveraendert(), kurz(r));
     r = await anfrage("DELETE", "/rest/v1/lern_ereignisse?id=eq." + e1.id, { token: A.token });
