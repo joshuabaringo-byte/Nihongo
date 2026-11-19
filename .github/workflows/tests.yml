@@ -29,9 +29,51 @@ jobs:
         run: node tests/verlauf.test.js
       - name: Version (nur Node)
         run: node tests/version.test.js
+      - name: Verbindungsdaten, kein geheimer Schlüssel im Repo (nur Node)
+        run: node tests/konfig.test.js
       - name: Playwright mit Chromium einrichten
         run: |
           npm install --no-save --no-package-lock playwright@1.63.0
           npx playwright install --with-deps chromium
       - name: App im Browser
         run: node tests/app.test.js
+
+  # Datenbank und Anmeldung gegen ein lokales Supabase auf dem Runner
+  # (Docker). Nur Datenbank, Anmeldung, REST-Schnittstelle und Testpostfach
+  # werden gestartet. Mit dem echten Projekt hat dieser Job nichts zu tun.
+  supabase:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: supabase/setup-cli@1dedf2c611547ede7232d26866dd3c56ab903bbb   # v1.7.3, fest auf diese Fassung
+        with:
+          version: 2.122.1
+      - name: Lokales Supabase starten
+        run: supabase start -x realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+      - name: Zugangsdaten des lokalen Supabase übernehmen
+        run: |
+          supabase status -o json > "$RUNNER_TEMP/supabase.json"
+          node -e '
+            const fs = require("fs"), t = fs.readFileSync(process.argv[1], "utf8");
+            const s = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+            const w = { SUPABASE_URL: s.API_URL, SUPABASE_PUBLISHABLE_KEY: s.PUBLISHABLE_KEY, SUPABASE_SECRET_KEY: s.SECRET_KEY,
+                        SUPABASE_DB_URL: s.DB_URL, SUPABASE_MAILPIT_URL: s.MAILPIT_URL || s.INBUCKET_URL };
+            const fehlt = Object.keys(w).filter(k => !w[k]);
+            if (fehlt.length) { console.error("fehlt: " + fehlt.join(", ") + " (vorhanden: " + Object.keys(s).join(", ") + ")"); process.exit(1); }
+            fs.appendFileSync(process.env.GITHUB_ENV, Object.keys(w).map(k => k + "=" + w[k]).join("\n") + "\n");
+          ' "$RUNNER_TEMP/supabase.json"
+      - name: Datenbank-Sicherheit (Row Level Security)
+        run: node tests/supabase.test.js
+      - name: Playwright mit Chromium einrichten
+        run: |
+          npm install --no-save --no-package-lock playwright@1.63.0
+          npx playwright install --with-deps chromium
+      - name: Anmeldung im Browser
+        run: node tests/app.test.js konto
+      - name: Protokoll der Anmeldung (nur bei Fehlern)
+        if: failure()
+        run: docker logs supabase_auth_kotoba --tail 60 2>&1 || true

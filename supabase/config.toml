@@ -1,0 +1,79 @@
+# Lokales Supabase für die Tests (supabase start, Supabase CLI 2.122.1).
+# Gilt nur für den eigenen Rechner und für GitHub Actions, nicht für das echte
+# Projekt: Dort werden dieselben Einstellungen im Dashboard gesetzt (README,
+# Abschnitt "Konto einrichten"). Vorlage: die Konfiguration, die
+# "supabase init" in dieser Version anlegt, gekürzt auf das, was die App braucht.
+project_id = "kotoba"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.migrations]
+enabled = true
+
+[db.seed]
+enabled = false
+
+# Testpostfach (Mailpit): fängt alle Mails ab, die Tests lesen den Code dort.
+[local_smtp]
+enabled = true
+port = 54324
+
+[auth]
+enabled = true
+site_url = "http://127.0.0.1:3000"
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+refresh_token_reuse_interval = 10
+# Neue Konten nur über das Dashboard; Registrieren ist abgeschaltet.
+enable_signup = false
+enable_anonymous_sign_ins = false
+enable_manual_linking = false
+
+# Großzügig, damit die Tests mehrere Anmeldungen hintereinander schaffen.
+[auth.rate_limit]
+email_sent = 100
+sign_in_sign_ups = 100
+token_verifications = 100
+token_refresh = 150
+
+# Anmelden mit E-Mail bleibt an (enable_signup schaltet hier den ganzen
+# E-Mail-Anbieter); neue Konten verhindert enable_signup = false oben.
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+secure_password_change = false
+max_frequency = "1s"
+otp_length = 6
+otp_expiry = 3600
+
+# Die Anmelde-Mail enthält nur den Code, keinen Link: Auf dem iPhone öffnet
+# ein Link Safari statt der App vom Home-Bildschirm.
+[auth.email.template.magic_link]
+subject = "Dein Anmeldecode für ことば"
+content_path = "./supabase/templates/anmeldecode.html"
+
+[realtime]
+enabled = false
+
+[studio]
+enabled = false
+
+[storage]
+enabled = false
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false

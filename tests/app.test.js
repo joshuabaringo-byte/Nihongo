@@ -1,6 +1,6 @@
 /* Tests der App im Browser
 
-   Aufruf:  node tests/app.test.js [c1] [c2] [c4] [c5] [c6] [c7] [p2] [p3a]   (ohne Angabe: alle)
+   Aufruf:  node tests/app.test.js [c1] [c2] [c4] [c5] [c6] [c7] [p2] [p3a] [p3b] [konto]   (ohne Angabe: alle)
    Braucht Node (ab Version 18) und Playwright mit Chromium:
      npm install --no-save playwright && npx playwright install chromium
    Der Test startet selbst einen kleinen Webserver für den Ordner des Repos.
@@ -12,7 +12,11 @@
    C1  Wiederherstellen überschreibt nie ohne Prüfung und Bestätigung
    C2  Ein Rechenfehler bewertet kein Wort, das nicht angezeigt wurde
    C6  Unlesbare Speicherdaten werden gesichert und nicht überschrieben
-   C7  Zwei offene Tabs verlieren keine Antworten                         */
+   C7  Zwei offene Tabs verlieren keine Antworten
+   KONTO  Anmeldung, Profile, Supabase-Bibliothek nur bei Bedarf. Der Teil
+          gegen ein lokales Supabase läuft nur mit SUPABASE_URL,
+          SUPABASE_PUBLISHABLE_KEY, SUPABASE_SECRET_KEY und
+          SUPABASE_MAILPIT_URL (auf GitHub im Job "supabase").             */
 "use strict";
 const http = require("http");
 const fs = require("fs");
@@ -838,6 +842,274 @@ function server(){
       !!v.meta.zusammengefasst && groesse <= 6000 && v.ereignisse.length < antworten + 12 && p.gleich, JSON.stringify({ groesse: groesse, ereignisse: v.ereignisse.length, p: p }));
     pruefe("Teil 5-6 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
     await ctx.close();
+  });
+
+  /* ================================================================ KONTO */
+  if(will("konto")) await abschnitt("konto", async () => {
+    console.log("\nKonto (Paket 4a): Anmeldung, Profile, Bibliothek nur bei Bedarf");
+    const lies = (page, k) => page.evaluate(k => { try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return "UNLESBAR"; } }, k);
+    const namen = page => page.evaluate(() => Object.keys(localStorage).sort());
+    const text = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return e ? e.textContent.replace(/\s+/g, " ").trim() : null; }, sel);
+    const sichtbar = (page, sel) => page.evaluate(s => { const e = document.querySelector(s); return !!(e && e.offsetParent); }, sel);
+    const bibliothekDa = page => page.evaluate(() => !!(window.supabase && window.supabase.createClient));
+    const profilVon = async page => (await lies(page, "kotoba-geraet") || {}).profil;
+    const neuLaden = async (page, fn, ms) => { const nav = page.waitForNavigation({ timeout: ms || 8000 }).catch(() => null); await fn(); await nav; await page.waitForTimeout(300); };
+    const einstellungen = async page => { await page.click("#knopfEinstellungen"); await page.waitForTimeout(150); };
+    const kontoMeldung = (page, muster, ms) => page.waitForFunction(m => new RegExp(m).test((document.querySelector("#kontoMeldung") || {}).textContent || ""),
+      muster.source, { timeout: ms || 8000 }).then(() => true, () => false);
+    /* Kontext mit eigener konfig.js; zählt die Anfragen nach der Supabase-Bibliothek */
+    async function kontext(konfig, mehr){
+      const ctx = await profil();
+      ctx.bibliothek = 0;
+      ctx.on("request", r => { if(r.url().indexOf("/supabase-js/") >= 0) ctx.bibliothek++; });
+      await ctx.route("**/konfig.js", r => r.fulfill({ contentType: "text/javascript; charset=utf-8",
+        body: "window.KOTOBA_KONFIG = " + JSON.stringify(konfig) + ";" }));
+      if(mehr) await mehr(ctx);
+      return ctx;
+    }
+    const LEER = { supabaseUrl: "", supabaseKey: "" };
+    const NICHT_DA = { supabaseUrl: "http://127.0.0.1:9", supabaseKey: "sb_publishable_test" };
+    const UID = "6f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+    const GERAET = "11111111-2222-4333-8444-555555555555";
+
+    // 1. Nicht eingerichtet: kein Formular, keine Bibliothek
+    let ctx = await kontext(LEER), page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    await einstellungen(page);
+    pruefe("nicht eingerichtet: Konto-Abschnitt sagt es, kein Anmeldeformular",
+      /nicht eingerichtet/i.test(await text(page, "#konto") || "") && !(await sichtbar(page, "#kontoEmail")), await text(page, "#konto"));
+    pruefe("nicht eingerichtet: Supabase-Bibliothek nicht geladen", ctx.bibliothek === 0 && !(await bibliothekDa(page)), ctx.bibliothek);
+    pruefe("Teil 1 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 2. Eingerichtet, Server nicht erreichbar
+    ctx = await kontext(NICHT_DA); page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    pruefe("eingerichtet: beim Start keine Bibliothek geladen (Gastbetrieb startet wie bisher)",
+      ctx.bibliothek === 0 && !(await bibliothekDa(page)), ctx.bibliothek);
+    await einstellungen(page);
+    pruefe("eingerichtet, abgemeldet: Feld für die E-Mail-Adresse", await sichtbar(page, "#kontoEmail") && await sichtbar(page, "#kontoCodeAnfordern"));
+    await page.fill("#kontoEmail", "keine-adresse");
+    await page.click("#kontoCodeAnfordern");
+    pruefe("ungültige Adresse: Hinweis, Bibliothek bleibt ungeladen",
+      await kontoMeldung(page, /gültige E-Mail/, 2000) && ctx.bibliothek === 0, await text(page, "#kontoMeldung"));
+    await page.fill("#kontoEmail", "jemand@example.com");
+    await page.click("#kontoCodeAnfordern");
+    pruefe("Server nicht erreichbar: verständliche Meldung", await kontoMeldung(page, /Keine Verbindung/, 15000), await text(page, "#kontoMeldung"));
+    pruefe("erst jetzt ist die Bibliothek geladen", ctx.bibliothek >= 1 && await bibliothekDa(page), ctx.bibliothek);
+    pruefe("weiter im Gast-Profil, kein Konto vermerkt", (await profilVon(page)) === "gast" && (await lies(page, "kotoba-konto")) === null);
+    pruefe("Teil 2 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 3. Bibliothek lässt sich nicht laden (offline)
+    ctx = await kontext(NICHT_DA, c => c.route("**/supabase-js/**", r => r.abort()));
+    page = await seite(ctx);
+    await setze(page, { "kotoba-einst": EINST });
+    await einstellungen(page);
+    await page.fill("#kontoEmail", "jemand@example.com");
+    await page.click("#kontoCodeAnfordern");
+    pruefe("Bibliothek nicht ladbar: Meldung nennt die Internetverbindung", await kontoMeldung(page, /Internetverbindung/), await text(page, "#kontoMeldung"));
+    pruefe("Teil 3 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // 4. Angemeldet (nachgestellt, Server nicht erreichbar): Anzeige, Antworten, Abmelden
+    ctx = await kontext(NICHT_DA); page = await seite(ctx);
+    const gastStand = await gelernt(page, 3, 2), kontoStand = await gelernt(page, 6, 2);
+    const angemeldet = { "kotoba-einst": EINST, "kotoba-v2": gastStand,
+      "kotoba-geraet": { id: GERAET, profil: UID }, "kotoba-konto": { id: UID, email: "konto@example.com" },
+      ["kotoba:" + UID + ":stand"]: kontoStand, ["kotoba:" + UID + ":einst"]: EINST,
+      "kotoba-anmeldung": { access_token: "x", refresh_token: "y", expires_at: 1, user: { id: UID } } };
+    await setze(page, angemeldet);
+    const vorStart = ctx.bibliothek;
+    await einstellungen(page);
+    pruefe("angemeldet: \"Angemeldet als konto@example.com\", Knöpfe zum Abmelden",
+      /Angemeldet als konto@example\.com/.test(await text(page, "#konto") || "") && await sichtbar(page, "#kontoAbmelden")
+      && await sichtbar(page, "#kontoEntfernen") && !(await sichtbar(page, "#kontoEmail")), await text(page, "#konto"));
+    pruefe("angemeldet: beim Start keine Bibliothek geladen", vorStart === 0 && !(await bibliothekDa(page)), vorStart);
+    await page.click("#blattZu"); await page.waitForTimeout(100);
+    await page.click("#umdrehen"); await page.click(".tap.gut"); await page.waitForTimeout(150);
+    const nachAntwort = await lies(page, "kotoba:" + UID + ":stand");
+    pruefe("angemeldet: Antworten gehen in das Profil des Kontos, Gast-Daten bleiben",
+      !!nachAntwort && JSON.stringify(nachAntwort) !== JSON.stringify(kontoStand)
+      && JSON.stringify(await lies(page, "kotoba-v2")) === JSON.stringify(gastStand));
+    await einstellungen(page);
+    await neuLaden(page, () => page.click("#kontoAbmelden"), 15000);
+    pruefe("Abmelden: Gast-Profil, Konto-Vermerk und Sitzung entfernt",
+      (await profilVon(page)) === "gast" && (await lies(page, "kotoba-konto")) === null && (await lies(page, "kotoba-anmeldung")) === null,
+      JSON.stringify(await namen(page)));
+    pruefe("Abmelden: Daten des Kontos bleiben auf dem Gerät, Gast-Daten unverändert",
+      JSON.stringify(await lies(page, "kotoba:" + UID + ":stand")) === JSON.stringify(nachAntwort)
+      && JSON.stringify(await lies(page, "kotoba-v2")) === JSON.stringify(gastStand));
+    pruefe("Abmelden: Meldung \"Abgemeldet\"", /Abgemeldet/.test(await meldung(page)), await meldung(page));
+    pruefe("Teil 4 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+
+    // 5. Abmelden und Daten entfernen, erst abgelehnt, dann bestätigt
+    await setze(page, angemeldet);
+    await einstellungen(page);
+    page.antwort = "ablehnen";
+    await page.click("#kontoEntfernen"); await page.waitForTimeout(300);
+    pruefe("Daten entfernen abgelehnt: nichts geändert, weiter angemeldet",
+      page.dialoge.length === 1 && (await profilVon(page)) === UID && !!(await lies(page, "kotoba:" + UID + ":stand"))
+      && !!(await lies(page, "kotoba-konto")), page.dialoge.join(" | "));
+    pruefe("die Rückfrage warnt: der Lernstand liegt bisher nur auf diesem Gerät", /nur auf diesem Gerät/.test(page.dialoge[0] || ""), page.dialoge[0]);
+    page.antwort = "ok";
+    await neuLaden(page, () => page.click("#kontoEntfernen"), 15000);
+    let k = await namen(page);
+    pruefe("Daten entfernen bestätigt: nichts mehr vom Konto auf dem Gerät, abgemeldet",
+      !k.some(n => n.indexOf("kotoba:" + UID + ":") === 0) && (await profilVon(page)) === "gast"
+      && (await lies(page, "kotoba-konto")) === null && (await lies(page, "kotoba-anmeldung")) === null, k.join(", "));
+    pruefe("Daten entfernen: Gast-Daten unverändert", JSON.stringify(await lies(page, "kotoba-v2")) === JSON.stringify(gastStand));
+    pruefe("Teil 5 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+
+    // 6. Unterbrochene Anmeldung (Konto vermerkt, Profil noch Gast): wird beim Start vollendet
+    await setze(page, { "kotoba-einst": EINST, "kotoba-geraet": { id: GERAET, profil: "gast" },
+                        "kotoba-konto": { id: UID, email: "konto@example.com" },
+                        "kotoba-anmeldung": { access_token: "x", refresh_token: "y", expires_at: 1, user: { id: UID } } });
+    let p6 = null;
+    for(let i = 0; i < 20 && p6 !== UID; i++){ await page.waitForTimeout(150); p6 = await profilVon(page).catch(() => null); }
+    await page.waitForTimeout(300);
+    pruefe("unterbrochene Anmeldung: beim Start ins Profil des Kontos gewechselt", p6 === UID, p6);
+    // Sitzung ohne Konto-Vermerk (etwa nach einem abgebrochenen Abmelden): wird beim Start entfernt
+    await setze(page, { "kotoba-einst": EINST, "kotoba-anmeldung": { access_token: "x", refresh_token: "y", expires_at: 1, user: { id: UID } } });
+    pruefe("Sitzung ohne Konto-Vermerk wird beim Start entfernt", (await lies(page, "kotoba-anmeldung")) === null && (await profilVon(page)) === "gast");
+    pruefe("Teil 6 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+    await ctx.close();
+
+    // ---------- 7. gegen ein lokales Supabase (auf GitHub im Job "supabase") ----------
+    const SBU = (process.env.SUPABASE_URL || "").replace(/\/+$/, ""), SBK = process.env.SUPABASE_PUBLISHABLE_KEY,
+          SBG = process.env.SUPABASE_SECRET_KEY, POSTFACH = (process.env.SUPABASE_MAILPIT_URL || "").replace(/\/+$/, "");
+    if(!SBU || !SBK || !SBG || !POSTFACH){
+      console.log("  übersprungen: Anmeldung gegen ein lokales Supabase (SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, "
+        + "SUPABASE_SECRET_KEY, SUPABASE_MAILPIT_URL fehlen)");
+      return;
+    }
+    if(!/^http:\/\/(127\.0\.0\.1|localhost)(:\d+)?$/.test(SBU)) throw new Error("nur gegen ein lokales Supabase, nicht " + SBU);
+    const admin = async (methode, pfad, daten) => {
+      const a = await fetch(SBU + pfad, { method: methode, body: daten ? JSON.stringify(daten) : undefined,
+        headers: { apikey: SBG, Authorization: "Bearer " + SBG, "Content-Type": "application/json" } });
+      const t = await a.text(); let j = null; try{ j = JSON.parse(t); }catch(e){ /* kein JSON */ }
+      return { status: a.status, json: j, text: t };
+    };
+    const lauf = require("crypto").randomBytes(4).toString("hex");
+    const adr = n => "kotoba-konto-" + n + "-" + lauf + "@example.com";
+    const konten = {};
+    try{
+      for(const n of ["a", "b"]){
+        const r = await admin("POST", "/auth/v1/admin/users", { email: adr(n), email_confirm: true });
+        if(!r.json || !r.json.id) throw new Error("Testkonto " + n + ": " + r.status + " " + r.text.slice(0, 160));
+        konten[n] = r.json.id;
+      }
+      const gelesen = new Set();
+      async function codeAusPostfach(email){
+        for(let i = 0; i < 60; i++){
+          const r = await fetch(POSTFACH + "/api/v1/messages?limit=50").then(a => a.json()).catch(() => ({}));
+          const m = (r.messages || []).find(m => !gelesen.has(m.ID) && (m.To || []).some(t => String(t.Address).toLowerCase() === email));
+          if(m){
+            gelesen.add(m.ID);
+            const voll = await fetch(POSTFACH + "/api/v1/message/" + m.ID).then(a => a.json());
+            const z = /\b(\d{6,10})\b/.exec(voll.Text || "") || /\b(\d{6,10})\b/.exec(String(voll.HTML || "").replace(/<[^>]*>/g, " "));
+            if(z) return z[1];
+          }
+          await new Promise(f => setTimeout(f, 250));
+        }
+        throw new Error("keine Mail mit Code an " + email);
+      }
+      async function codeAnfordern(page, email){
+        await einstellungen(page);
+        await page.fill("#kontoEmail", email);
+        await page.click("#kontoCodeAnfordern");
+        return kontoMeldung(page, /unterwegs/, 10000);
+      }
+      const roh = (page, k) => page.evaluate(k => localStorage.getItem(k), k);
+
+      ctx = await kontext({ supabaseUrl: SBU, supabaseKey: SBK }, c => c.route(SBU + "/**", r => r.continue()));
+      page = await seite(ctx);
+      await setze(page, { "kotoba-einst": EINST, "kotoba-v2": await gelernt(page, 6, 2), "kotoba-dojo": { blumen: 3 } });
+      const gastRoh = await roh(page, "kotoba-v2"), gastDojo = await roh(page, "kotoba-dojo");
+
+      // unbekannte Adresse
+      await einstellungen(page);
+      await page.fill("#kontoEmail", adr("unbekannt"));
+      await page.click("#kontoCodeAnfordern");
+      const ok1 = await kontoMeldung(page, /kein Konto/, 10000);
+      const nutzer = await admin("GET", "/auth/v1/admin/users?page=1&per_page=1000");
+      pruefe("unbekannte Adresse: \"kein Konto\", es wird keines angelegt",
+        ok1 && Array.isArray((nutzer.json || {}).users) && !nutzer.json.users.some(u => u.email === adr("unbekannt")),
+        await text(page, "#kontoMeldung"));
+      await page.click("#blattZu"); await page.waitForTimeout(100);
+
+      // Code anfordern, falscher Code
+      pruefe("Konto A: Code unterwegs, Feld für den Code", await codeAnfordern(page, adr("a")) && await sichtbar(page, "#kontoCode"),
+        await text(page, "#kontoMeldung"));
+      const codeA = await codeAusPostfach(adr("a"));
+      await page.fill("#kontoCode", codeA === "000000" ? "111111" : "000000");
+      await page.click("#kontoAnmelden");
+      pruefe("falscher Code: Meldung, nicht angemeldet",
+        await kontoMeldung(page, /stimmt nicht/, 10000) && (await profilVon(page)) === "gast" && (await lies(page, "kotoba-konto")) === null,
+        await text(page, "#kontoMeldung"));
+
+      // richtiger Code, Gast-Daten übernehmen
+      page.antwort = "ok";
+      await page.fill("#kontoCode", codeA);
+      await neuLaden(page, () => page.click("#kontoAnmelden"), 15000);
+      const ka = await lies(page, "kotoba-konto");
+      pruefe("richtiger Code: angemeldet, Profil ist die Benutzerkennung von A",
+        (await profilVon(page)) === konten.a && !!ka && ka.id === konten.a && ka.email === adr("a"), JSON.stringify(ka));
+      pruefe("Rückfrage zur Übernahme nennt die Wörter ohne Konto (6)", page.dialoge.length === 1 && /\b6 Wörter\b/.test(page.dialoge[0]),
+        page.dialoge.join(" | "));
+      pruefe("übernommen: Lernstand, Dojo und Historie im Konto wie beim Gast",
+        (await roh(page, "kotoba:" + konten.a + ":stand")) === gastRoh && (await roh(page, "kotoba:" + konten.a + ":dojo")) === gastDojo
+        && !!(await lies(page, "kotoba:" + konten.a + ":ereignisse")));
+      pruefe("Gast-Daten bleiben erhalten (kopiert, nicht verschoben)", (await roh(page, "kotoba-v2")) === gastRoh);
+      const sitzung = await lies(page, "kotoba-anmeldung");
+      pruefe("Sitzung von A gespeichert", !!sitzung && !!sitzung.user && sitzung.user.id === konten.a && !!sitzung.refresh_token);
+      await einstellungen(page);
+      pruefe("nach dem Neustart: \"Angemeldet als …\", Bibliothek nicht geladen",
+        new RegExp("Angemeldet als " + adr("a").replace(/[.]/g, "\\.")).test(await text(page, "#konto") || "") && !(await bibliothekDa(page)),
+        await text(page, "#konto"));
+
+      // Abmelden: auch auf dem Server
+      await neuLaden(page, () => page.click("#kontoAbmelden"), 15000);
+      pruefe("A abgemeldet: Gast-Profil, Daten von A bleiben auf dem Gerät",
+        (await profilVon(page)) === "gast" && (await lies(page, "kotoba-anmeldung")) === null
+        && (await roh(page, "kotoba:" + konten.a + ":stand")) === gastRoh);
+      const erneuern = await fetch(SBU + "/auth/v1/token?grant_type=refresh_token", { method: "POST",
+        headers: { apikey: SBK, "Content-Type": "application/json" }, body: JSON.stringify({ refresh_token: sitzung.refresh_token }) });
+      pruefe("Abmelden beendet die Sitzung auch auf dem Server", erneuern.status >= 400, erneuern.status);
+
+      // B ohne Übernahme
+      page.antwort = "ablehnen"; page.dialoge.length = 0;
+      await codeAnfordern(page, adr("b"));
+      await page.fill("#kontoCode", await codeAusPostfach(adr("b")));
+      await neuLaden(page, () => page.click("#kontoAnmelden"), 15000);
+      const sb = await lies(page, "kotoba:" + konten.b + ":stand");
+      pruefe("B angemeldet, Übernahme abgelehnt: Konto B beginnt leer",
+        (await profilVon(page)) === konten.b && page.dialoge.length === 1 && (sb === null || Object.keys(sb).length === 0), JSON.stringify(sb));
+      pruefe("Gast und A unverändert", (await roh(page, "kotoba-v2")) === gastRoh && (await roh(page, "kotoba:" + konten.a + ":stand")) === gastRoh);
+      await einstellungen(page);
+      await neuLaden(page, () => page.click("#kontoAbmelden"), 15000);
+
+      // A erneut: keine Rückfrage, Daten von A sind da
+      page.dialoge.length = 0; page.antwort = "ok";
+      await codeAnfordern(page, adr("a"));
+      await page.fill("#kontoCode", await codeAusPostfach(adr("a")));
+      await neuLaden(page, () => page.click("#kontoAnmelden"), 15000);
+      pruefe("A erneut angemeldet: keine Rückfrage, Lernstand von A wieder da",
+        (await profilVon(page)) === konten.a && page.dialoge.length === 0 && (await roh(page, "kotoba:" + konten.a + ":stand")) === gastRoh,
+        page.dialoge.join(" | "));
+
+      // A abmelden und Daten entfernen
+      await einstellungen(page);
+      await neuLaden(page, () => page.click("#kontoEntfernen"), 15000);
+      k = await namen(page);
+      pruefe("A abgemeldet, Daten entfernt: nichts mehr von A, B und Gast unverändert",
+        (await profilVon(page)) === "gast" && !k.some(n => n.indexOf("kotoba:" + konten.a + ":") === 0)
+        && k.some(n => n.indexOf("kotoba:" + konten.b + ":") === 0) && (await roh(page, "kotoba-v2")) === gastRoh, k.join(", "));
+      pruefe("Teil 7 ohne Fehler der Seite", page.fehler.length === 0, page.fehler.join(" | "));
+      await ctx.close();
+    } finally {
+      for(const n of Object.keys(konten)) await admin("DELETE", "/auth/v1/admin/users/" + konten[n]).catch(() => {});
+    }
   });
 
   await browser.close(); srv.close();

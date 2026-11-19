@@ -65,8 +65,10 @@ eines anderen, auch nicht die gesicherten Kopien unlesbarer Daten.
 - Das Gast-Profil nutzt die bisherigen Namen; es wurde nichts umkopiert.
 - Erlaubte Profilnamen: Buchstaben, Ziffern, `-` und `_`, höchstens 64 Zeichen.
   Ungültige Werte fallen auf `gast` zurück.
-- Später ist das Profil eines angemeldeten Benutzers seine Supabase-`user_id`.
+- Das Profil eines angemeldeten Benutzers ist seine Supabase-`user_id` (umgesetzt in 4a).
 - Die App bleibt ohne Konto nutzbar; dann arbeitet sie im Gast-Profil, nur lokal.
+- Für das Gerät, nicht für ein Profil, gelten außerdem `kotoba-konto` (wer angemeldet
+  ist: `{ id, email }`) und `kotoba-anmeldung` (die Sitzung der Supabase-Bibliothek).
 
 ## 4. Lernereignisse (umgesetzt in 3b)
 
@@ -127,80 +129,62 @@ Vorschlag, umgesetzt in Paket 4; bis dahin gilt alles je Profil auf einem Gerät
 | Dojo-Auswahl (Bildersatz, Richtung, Übungsart, Schreibweise) | Gerät | Bedienung |
 | Dojo-Fortschritt (Zähler, Bestwerte, Serie, Blumen) | Benutzer | Lernfortschritt |
 
-## 6. Supabase (Paket 4, Entwurf)
+## 6. Supabase (4a umgesetzt: Datenbank und Anmeldung; 4b folgt: Abgleich)
 
 Region: Tokio (`ap-northeast-1`), nah an den heutigen Nutzern in Japan. Auch für Nutzer
 in der EU ist ein Standort in Japan grundsätzlich unproblematisch, weil die EU Japan ein
 angemessenes Datenschutzniveau bescheinigt hat.
 
-### Tabellen, Row Level Security
+### Tabellen, Row Level Security (umgesetzt in 4a)
 
-```sql
--- Lernereignisse: unveränderlich, nur anhängen
-create table public.lern_ereignisse (
-  user_id      uuid        not null default auth.uid() references auth.users (id) on delete cascade,
-  id           uuid        not null,                 -- vom Gerät erzeugt
-  wort_id      text        not null check (char_length(wort_id) between 1 and 200),
-  art          text        not null check (art in ('antwort', 'uebernahme', 'widerruf')),
-  bewertung    smallint    check (bewertung between 1 and 4),
-  zeit         timestamptz not null,                 -- Zeitpunkt auf dem Gerät
-  tag          date        not null,                 -- Lerntag nach dem 4-Uhr-Wechsel
-  geraet_id    uuid        not null,
-  plan_version text        not null,
-  daten        jsonb,
-  empfangen_am timestamptz not null default now(),   -- setzt der Server, für den Abruf
-  primary key (user_id, id),                         -- Kennungen je Benutzer: kein fremdes Konto kann eine belegen
-  check ((art = 'antwort') = (bewertung is not null))
-);
-create index lern_ereignisse_abruf on public.lern_ereignisse (user_id, empfangen_am);
-create index lern_ereignisse_wort  on public.lern_ereignisse (user_id, wort_id, zeit);
+Das SQL steht in `supabase/migrations/20261119000000_lernstand.sql`; die Einrichtung
+im README unter *Konto einrichten*.
 
--- user_id und empfangen_am setzt immer der Server, nie die App
-create function public.ereignis_stempeln() returns trigger
-language plpgsql set search_path = '' as $$
-begin
-  new.user_id := auth.uid();
-  new.empfangen_am := now();
-  return new;
-end $$;
-create trigger ereignis_stempeln before insert on public.lern_ereignisse
-  for each row execute function public.ereignis_stempeln();
+| Tabelle | Inhalt | Rechte eines angemeldeten Benutzers |
+|---|---|---|
+| `lern_ereignisse` | Antworten, Übernahmen, Widerrufe wie in `verlauf.js`; Schlüssel `(user_id, id)` | eigene lesen und anlegen; nie ändern oder löschen |
+| `einstellungen` | eine Zeile je Benutzer, `daten` als JSON-Objekt | eigene lesen, anlegen, ändern |
+| `dojo_stand` | eine Zeile je Benutzer, `daten` als JSON-Objekt | eigene lesen, anlegen, ändern |
 
-alter table public.lern_ereignisse enable row level security;
-create policy "eigene Ereignisse lesen" on public.lern_ereignisse
-  for select to authenticated using ((select auth.uid()) = user_id);
-create policy "eigene Ereignisse anlegen" on public.lern_ereignisse
-  for insert to authenticated with check ((select auth.uid()) = user_id);
--- keine Policies für update und delete: Ereignisse sind unveränderlich
-
--- Einstellungen und Dojo-Fortschritt je Benutzer, der neueste Stand gewinnt
-create table public.einstellungen (
-  user_id      uuid primary key default auth.uid() references auth.users (id) on delete cascade,
-  daten        jsonb not null,
-  geaendert_am timestamptz not null default now()
-);
-create table public.dojo_stand (
-  user_id      uuid primary key default auth.uid() references auth.users (id) on delete cascade,
-  daten        jsonb not null,
-  geaendert_am timestamptz not null default now()
-);
-alter table public.einstellungen enable row level security;
-alter table public.dojo_stand    enable row level security;
--- je Tabelle: select, insert und update nur für (select auth.uid()) = user_id
-```
-
+- **Ohne Anmeldung** (`anon`) gibt es keine Rechte an den Tabellen; mit Anmeldung nur
+  an den eigenen Zeilen (Row Level Security mit `(select auth.uid()) = user_id`).
+- **`user_id` und die Zeitstempel setzt ein Trigger**, was auch immer die App schickt:
+  beim Anlegen `auth.uid()`, beim Ändern bleibt der bisherige Benutzer. Eine Zeile
+  wandert nie zu einem anderen Konto. `empfangen_am` ist der Merker für den Abruf (4b).
+- **Doppelte Uploads** sind harmlos: Mit `on conflict do nothing` (PostgREST:
+  `Prefer: resolution=ignore-duplicates`) bleibt das erste Ereignis. Weil die Kennung
+  je Benutzer gilt, kann kein fremdes Konto eine Kennung vorab belegen.
+- **Angepasst gegenüber dem Entwurf:** `tag` ist eine ganze Zahl, genau der Lerntag der
+  App (Tage seit 1970-01-01 nach dem Kalender des Geräts, Tageswechsel 4 Uhr), damit
+  nichts umgerechnet werden muss. `geraet_id` ist Text bis 64 Zeichen wie in
+  `verlauf.js`. Dazu Größengrenzen: `daten` eines Ereignisses 16 KB, Einstellungen
+  64 KB, Dojo 1 MB.
+- Die Trigger-Funktionen sind von außen nicht aufrufbar; Rechte werden ausdrücklich
+  vergeben, nicht über die Voreinstellungen von Supabase.
 - Keine Tabellen für Vokabeln: Die Inhalte bleiben in der App.
 - Wird ein Konto gelöscht, verschwinden alle seine Zeilen mit (`on delete cascade`).
-  Konto löschen braucht eine Server-Funktion mit Admin-Rechten.
-- In die App kommen nur Projekt-URL und der öffentliche Schlüssel („anon“ bzw.
-  „publishable“). Der `service_role`-Schlüssel kommt nie in die App oder ins Repo.
+  Konto löschen in der App braucht später eine Server-Funktion mit Admin-Rechten.
+- In die App kommen nur Projekt-URL und der öffentliche Schlüssel („publishable“ bzw.
+  „anon“), in `konfig.js`. Der geheime Schlüssel (`secret`, `service_role`) kommt nie
+  in die App oder ins Repo; `tests/konfig.test.js` prüft das.
 
-### Anmeldung
+### Anmeldung (umgesetzt in 4a, `konto.js`)
 
 - E-Mail-Code (Einmalcode, kein Passwort). Ein Magic Link öffnet sich auf dem iPhone in
-  Safari statt in der App vom Home-Bildschirm und landet im falschen Speicher.
-- Registrierung zunächst abgeschaltet; mehrere Konten funktionieren trotzdem, sobald
-  sie eingeschaltet wird. Apple- oder Google-Anmeldung lassen sich ergänzen.
+  Safari statt in der App vom Home-Bildschirm und landet im falschen Speicher. Die
+  Mailvorlage (`supabase/templates/anmeldecode.html`) enthält deshalb nur den Code.
+- Registrierung abgeschaltet; die App fragt Codes mit `shouldCreateUser: false` an und
+  legt so nie ein Konto an. Mehrere Konten funktionieren trotzdem, sobald die
+  Registrierung eingeschaltet wird. Apple- oder Google-Anmeldung lassen sich ergänzen.
+- Die Bibliothek (`supabase-js/supabase.js`, unverändert) lädt `konto.js` erst beim
+  Anfordern oder Prüfen eines Codes und beim Abmelden. Ohne Konto, und in 4a auch
+  angemeldet, startet die App ohne sie.
+- Nach dem Anmelden: `kotoba-konto` wird gesetzt, das Profil wechselt auf die
+  `user_id`, die App startet neu. Abmelden beendet die Sitzung auch auf dem Server;
+  antwortet er nicht, wird nach 5 Sekunden trotzdem lokal abgemeldet.
+- Zustände, die sich selbst heilen: Gibt es eine Sitzung ohne `kotoba-konto`, wird sie
+  beim Start entfernt. Gibt es `kotoba-konto`, aber ein anderes Profil (Anmelden
+  unterbrochen), wechselt die App beim Start ins Profil des Kontos.
 
 ### Synchronisierung
 
@@ -215,20 +199,31 @@ alter table public.dojo_stand    enable row level security;
 
 ### Mehrere Benutzer auf einem Gerät
 
-- Beim ersten Anmelden fragt die App, ob die Gast-Daten ins Konto übernommen werden.
-  Dank der Ereignisse ist das ein Zusammenführen, kein Überschreiben.
+- Beim ersten Anmelden auf einem Gerät (das Profil des Kontos ist dort noch leer)
+  fragt die App, ob die Gast-Daten ins Konto übernommen werden. In 4a werden
+  Lernstand, Einstellungen, Dojo und Historie kopiert; die Gast-Daten bleiben. Mit dem
+  Abgleich (4b) gehen die kopierten Ereignisse hoch und vereinigen sich mit denen
+  anderer Geräte: ein Zusammenführen, kein Überschreiben.
 - Meldet sich jemand anderes an, bekommt er ein eigenes Profil. Daten eines anderen
   Profils werden nie in sein Konto hochgeladen.
-- Abmelden lässt die Daten zunächst auf dem Gerät; auf geteilten Geräten gibt es
-  „Abmelden und Daten von diesem Gerät entfernen“.
+- Abmelden lässt die Daten auf dem Gerät; auf geteilten Geräten gibt es
+  „Abmelden und Daten von diesem Gerät entfernen“. Bis 4b liegt der Lernstand eines
+  Kontos nur auf dem Gerät, deshalb warnt die Rückfrage davor.
 
 ### Tests
 
-- Row Level Security: automatisch auf GitHub gegen ein lokales Supabase (Supabase CLI,
-  Docker) mit zwei Testkonten: A liest nie Zeilen von B, legt keine für B an, ändert und
-  löscht keine; ohne Anmeldung gibt es keinen Zugriff.
-- Synchronisierung: zwei simulierte Geräte, zwei Benutzer, offline und wieder online,
-  doppelte Uploads, späte Ereignisse.
+- Row Level Security (umgesetzt, `tests/supabase.test.js`): automatisch auf GitHub
+  gegen ein lokales Supabase (Supabase CLI, Docker) mit zwei Testkonten: A liest nie
+  Zeilen von B, legt keine für B an, ändert und löscht keine; ohne Anmeldung kein
+  Zugriff; der Server stempelt Benutzer und Zeiten; doppelte Ereignisse zählen einmal;
+  ungültige Werte werden abgelehnt; ein gelöschtes Konto nimmt alles mit. Dazu über
+  psql: jede Tabelle hat RLS, `anon` hat keine Rechte, keine Funktion ist aufrufbar.
+- Anmeldung im Browser (umgesetzt, `tests/app.test.js konto`): mit Code aus dem
+  Testpostfach, falscher Code, unbekannte Adresse, Übernahme ja und nein, Abmelden
+  auch auf dem Server, Daten entfernen; ohne Server: Bibliothek nur bei Bedarf,
+  Meldungen ohne Netz.
+- Synchronisierung (4b): zwei simulierte Geräte, zwei Benutzer, offline und wieder
+  online, doppelte Uploads, späte Ereignisse.
 
 ## 7. Migrationskosten
 

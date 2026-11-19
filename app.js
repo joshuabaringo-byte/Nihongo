@@ -166,10 +166,10 @@ var geraet = (function(){
   if(JSON.stringify(g) !== vorher) lege(K_GERAET, g);
   return g;
 })();
-function schluessel(name){
-  return geraet.profil === GAST ? (GAST_NAMEN[name] || "kotoba-" + name)
-                                : "kotoba:" + geraet.profil + ":" + name;
+function nameIn(p, name){
+  return p === GAST ? (GAST_NAMEN[name] || "kotoba-" + name) : "kotoba:" + p + ":" + name;
 }
+function schluessel(name){ return nameIn(geraet.profil, name); }
 /* Gehört ein Speichername zum aktiven Profil? */
 function zumProfil(n){
   return geraet.profil === GAST ? n.indexOf("kotoba:") !== 0
@@ -1879,11 +1879,62 @@ function start(){
   try{ sessionStorage.removeItem(MERKER); }catch(e){ /* egal */ }
 }
 
-/* Was der Zusatz in dojo.js vom Trainer braucht. */
+/* ---------- Profile für das Konto (konto.js) ----------
+   Angemeldet arbeitet die App im Profil des Kontos (Profilname = Benutzer-
+   kennung), abgemeldet im Gast-Profil. Gewechselt wird immer mit einem
+   Neustart, damit kein Teil der App Daten des alten Profils im Speicher hält. */
+function profilWechseln(p, nachricht){
+  if(!gueltigesProfil(p) || !lege(K_GERAET, { id: geraet.id, profil: p })) return false;
+  try{ if(nachricht) sessionStorage.setItem(K_MELDUNG, nachricht); }catch(e){ /* dann ohne Meldung */ }
+  location.reload();
+  return true;
+}
+/* Alle Speichernamen eines Profils (nicht für das Gast-Profil, dessen Namen
+   keinen gemeinsamen Vorsatz haben) */
+function profilNamen(p){
+  var aus = [];
+  if(!gueltigesProfil(p) || p === GAST) return aus;
+  try{
+    for(var i = 0; i < localStorage.length; i++){
+      var n = localStorage.key(i);
+      if(n.indexOf("kotoba:" + p + ":") === 0) aus.push(n);
+    }
+  }catch(e){ /* dann keine */ }
+  return aus;
+}
+function profilEntfernen(p){
+  profilNamen(p).forEach(entferne);
+  return profilNamen(p).length === 0;
+}
+/* Was liegt im Gast-Profil? Für die Rückfrage beim ersten Anmelden. */
+function gastDaten(){
+  var st = hole(nameIn(GAST, "stand"), {}), dj = hole(nameIn(GAST, "dojo"), null);
+  return { woerter: Object.keys(st).filter(istWortDerApp).length, dojo: istObjekt(dj) && Object.keys(dj).length > 0 };
+}
+/* Kopiert Lernstand, Einstellungen, Dojo und Antwort-Historie des Gast-Profils
+   unverändert in ein anderes Profil; die Gast-Daten bleiben, wie sie sind.
+   Gelingt ein Schritt nicht (Speicher voll), wird das Kopierte wieder entfernt. */
+function gastKopieren(ziel){
+  if(!gueltigesProfil(ziel) || ziel === GAST) return false;
+  if(geraet.profil === GAST && ausstehend.length) ereignisseAnhaengen([]);    // Vorgemerktes zuerst sichern
+  var namen = ["stand", "einst", "dojo", "ereignisse"], m = hole(nameIn(GAST, "ereignisse"), null), kopiert = [];
+  if(m && Array.isArray(m.teile)) m.teile.forEach(function(n){ namen.push("ereignisse-" + n); });
+  for(var i = 0; i < namen.length; i++){
+    var text = rohLesen(nameIn(GAST, namen[i])), z = nameIn(ziel, namen[i]);
+    if(text === null) continue;
+    try{ localStorage.setItem(z, text); kopiert.push(z); }
+    catch(e){ kopiert.forEach(entferne); return false; }
+  }
+  return true;
+}
+
+/* Was der Zusatz in dojo.js und die Anmeldung in konto.js vom Trainer brauchen. */
 window.KOTOBA = {
-  esc: esc, einst: einst, hole: hole, lege: lege, schluessel: schluessel,
+  esc: esc, einst: einst, hole: hole, lege: lege, entferne: entferne, schluessel: schluessel,
   sprich: sprich, spracheDa: spracheDa, melde: melde,
-  blattAuf: blattAuf, blattZu: blattZu, passeAn: passeAn
+  blattAuf: blattAuf, blattZu: blattZu, passeAn: passeAn,
+  GAST: GAST, profil: geraet.profil, profilWechseln: profilWechseln, profilNamen: profilNamen,
+  profilEntfernen: profilEntfernen, gastDaten: gastDaten, gastKopieren: gastKopieren, woerterText: woerterText
 };
 
 try{

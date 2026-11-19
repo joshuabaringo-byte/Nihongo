@@ -9,7 +9,8 @@ Dazu das **Dojo**: Bilderquiz, Paare finden, Zahlen und Zeit, Aufgaben im Format
 des JLPT für N5 und N4 und kurze Lesetexte. Wo es zu einem Wort ein Bild gibt,
 steht es auch auf der Karteikarte.
 
-Läuft ohne Server, ohne Konto und ohne Netz. Alles bleibt auf dem Gerät.
+Läuft ohne Server und ohne Netz. Ein Konto ist freiwillig (siehe *Konto*); ohne Konto
+bleibt alles auf dem Gerät.
 
 ## Einmalig einschalten
 
@@ -237,21 +238,88 @@ nicht (Speicher voll), speichert sie in dieser Sitzung nichts darüber.
 anderen ein und ändert nur das eine Wort. Antworten gehen so nicht verloren. Für
 Einstellungen und Dojo gilt weiter: Der Tab, der zuletzt speichert, gewinnt.
 
+## Konto
+
+Unter dem Zahnrad, Abschnitt **Konto**: E-Mail-Adresse eingeben, **Code anfordern**,
+den Code aus der Mail eingeben, **Anmelden**. Ein Passwort gibt es nicht. Neue Konten
+legt die App nie an; nur Konten, die im Supabase-Projekt angelegt sind, können sich
+anmelden.
+
+- Angemeldet arbeitet die App im **Profil des Kontos**. Beim ersten Anmelden auf einem
+  Gerät fragt sie, ob der Lernstand ohne Konto übernommen werden soll. Er wird
+  kopiert; ohne Anmeldung ist er weiter da.
+- **Abmelden** beendet die Sitzung, auch auf dem Server. Der Lernstand des Kontos
+  bleibt auf dem Gerät, beim nächsten Anmelden ist er wieder da.
+- **Abmelden und Daten von diesem Gerät entfernen** löscht zusätzlich alles, was zu
+  diesem Konto auf dem Gerät liegt. Die Daten ohne Konto bleiben.
+- Der **Abgleich zwischen Geräten** kommt mit Paket 4b. Bis dahin liegt der Lernstand
+  auch angemeldet nur auf dem Gerät; die Sicherung als Datei bleibt wichtig.
+- Die Anmeldung braucht Netz. Die Bibliothek dafür (supabase-js) lädt die App erst,
+  wenn ein Konto benutzt wird; ohne Konto startet sie so schnell wie bisher.
+
+### Konto einrichten (einmalig)
+
+Die Namen im Supabase-Dashboard können sich leicht ändern; gemeint ist jeweils der
+genannte Bereich.
+
+1. Auf supabase.com ein **neues Projekt** anlegen: Region **Northeast Asia (Tokyo)**,
+   Tarif *Free*. Das Datenbank-Passwort im Passwort-Manager ablegen. Die App braucht
+   es nicht, und es gehört nirgendwohin sonst.
+2. **SQL Editor** → neue Abfrage → den ganzen Inhalt von
+   `supabase/migrations/20261119000000_lernstand.sql` einfügen → **Run**. Das legt die
+   Tabellen und alle Zugriffsregeln an.
+3. **Authentication → Sign In / Providers**: den Anbieter **Email** eingeschaltet
+   lassen, **Allow new users to sign up** ausschalten. Dann kann sich niemand selbst
+   ein Konto anlegen.
+4. **Authentication → Emails → Magic Link**: als Betreff `Dein Anmeldecode für ことば`,
+   als Text den Inhalt von `supabase/templates/anmeldecode.html` einsetzen. Er enthält
+   `{{ .Token }}`, also den Code, und keinen Link: Ein Link würde auf dem iPhone
+   Safari öffnen statt der App vom Home-Bildschirm.
+5. **Authentication → Users → Add user → Create new user**: die eigene E-Mail-Adresse,
+   ein langes zufälliges Passwort (wird nicht gebraucht), **Auto Confirm User**
+   ankreuzen.
+6. **Project Settings → API Keys**: die **Project URL** (`https://….supabase.co`) und
+   den **Publishable key** (`sb_publishable_…`) in `konfig.js` eintragen. Beide sind
+   öffentlich und dürfen in der App stehen.
+
+Nie weitergeben oder eintragen: den **Secret key** (`sb_secret_…`), den
+`service_role`-Schlüssel und das Datenbank-Passwort. `tests/konfig.test.js` schlägt
+an, falls einer davon im Repo landet.
+
+Gut zu wissen:
+
+- Kostenlose Projekte **pausieren** nach etwa einer Woche ohne Nutzung. Die App läuft
+  ohne Konto-Funktionen weiter; im Dashboard lässt sich das Projekt wieder starten.
+- Der eingebaute **Mailversand** schickt nur wenige Mails pro Stunde und nur an
+  Mitglieder des Projekts. Für dich reicht das. Für weitere Personen braucht es einen
+  eigenen Mailversand (Authentication → Emails → SMTP).
+- Die App nimmt Codes mit 6 bis 10 Ziffern an, je nach Einstellung des Projekts.
+
 ## Tests
 
     node tests/plan.test.js       # Wiederholungsplan, braucht nur Node
     node tests/kennungen.test.js  # keine Kennung geht verloren, braucht nur Node
     node tests/verlauf.test.js    # Antwort-Historie: Nachrechnen, Geräte, Zeitzonen, braucht nur Node
     node tests/version.test.js    # sichtbare Version und Service Worker passen zusammen
+    node tests/konfig.test.js     # konfig.js, Bibliothek unverändert, kein geheimer Schlüssel im Repo
     node tests/app.test.js        # die App im Browser, braucht Playwright mit Chromium
+    node tests/supabase.test.js   # Datenbank-Sicherheit, braucht ein lokales Supabase (unten)
 
 `app.test.js` startet einen eigenen kleinen Webserver und arbeitet in leeren
 Browserprofilen; echte Lernstände bleiben unberührt. Playwright einrichten:
 `npm install --no-save playwright && npx playwright install chromium`.
 
-Auf GitHub laufen beide automatisch bei jedem Pull Request und nach jedem Merge
-(`.github/workflows/tests.yml`); das Ergebnis steht am Pull Request. Das
-Veröffentlichen der Website hängt nicht davon ab.
+`supabase.test.js` und der Teil des Abschnitts `konto` in `app.test.js`, der sich
+wirklich anmeldet, laufen gegen ein **lokales Supabase** (Supabase CLI und Docker,
+`supabase start` im Repo-Ordner). Sie brauchen dessen Zugangsdaten aus
+`supabase status -o env` als `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`,
+`SUPABASE_SECRET_KEY`, `SUPABASE_DB_URL` und `SUPABASE_MAILPIT_URL`. Gegen ein
+echtes Projekt laufen sie nicht: Sie legen Testkonten an und löschen sie wieder.
+
+Auf GitHub laufen alle Tests automatisch bei jedem Pull Request und nach jedem Merge
+(`.github/workflows/tests.yml`); der Job `supabase` startet dafür ein lokales
+Supabase auf dem Runner. Das Ergebnis steht am Pull Request. Das Veröffentlichen
+der Website hängt nicht davon ab.
 
 ## Wörter ergänzen
 
@@ -401,7 +469,11 @@ es danach wieder, erscheint ein Hinweis statt eines leeren Bildschirms.
 | `werkzeug/bilder-bauen.js` | baut `bilder.svg` neu |
 | `schrift/` | Ms Madi, die Schrift der Unterschrift unter *Über* (SIL Open Font License 1.1, Text in `schrift/OFL.txt`) |
 | `sw.js` | Offlinebetrieb |
-| `tests/` | Tests für Wiederholungsplan, Kennungen und App (nicht Teil der Website-Funktion); `tests/kennungen.json` ist das Verzeichnis aller veröffentlichten Kennungen |
+| `konto.js` | der Abschnitt *Konto*: Anmelden mit E-Mail-Code, Abmelden, Profilwechsel |
+| `konfig.js` | Projekt-URL und öffentlicher Schlüssel des Supabase-Projekts (sonst nichts) |
+| `supabase-js/` | die Bibliothek supabase-js 2.119.0, unverändert aus dem npm-Paket (`dist/umd/supabase.js`), mit ihrer MIT-Lizenz; wird nur bei Bedarf geladen |
+| `supabase/` | Datenbank: `migrations/` (Tabellen und Zugriffsregeln), `templates/` (Anmelde-Mail), `config.toml` (nur für das lokale Supabase der Tests) |
+| `tests/` | Tests für Wiederholungsplan, Kennungen, App und Datenbank (nicht Teil der Website-Funktion); `tests/kennungen.json` ist das Verzeichnis aller veröffentlichten Kennungen |
 | `werkzeug/kennungen.js` | nimmt neue Kennungen ins Verzeichnis auf |
 | `ARCHITEKTUR.md` | Zielarchitektur für mehrere Benutzer und Supabase, Datenmodell, Migrationskosten |
 | `manifest.webmanifest` | Angaben für den Home-Bildschirm |
