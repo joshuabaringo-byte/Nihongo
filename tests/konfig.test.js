@@ -41,6 +41,15 @@ if(url){
   console.log("  (noch nicht eingerichtet: die App zeigt die Anmeldung erst mit URL und Schlüssel)");
 }
 
+console.log("\nSupabase-Bibliothek");
+// dist/umd/supabase.js aus dem npm-Paket @supabase/supabase-js 2.119.0 (Paket-Prüfsumme wie bei npm)
+const BIBLIOTHEK_SHA256 = "a867edbcfb029370aeec7223dd6180b560b621fbe3bc64c6584fb0369d1b7bce";
+let bib = null;
+try{ bib = fs.readFileSync(path.join(WURZEL, "supabase-js", "supabase.js")); }catch(e){ /* fehlt */ }
+pruefe("supabase-js/supabase.js unverändert (2.119.0 aus npm)",
+  !!bib && require("crypto").createHash("sha256").update(bib).digest("hex") === BIBLIOTHEK_SHA256);
+pruefe("Lizenz der Bibliothek liegt bei (supabase-js/LICENSE)", fs.existsSync(path.join(WURZEL, "supabase-js", "LICENSE")));
+
 console.log("\nKein geheimer Schlüssel im Repo");
 let dateien;
 try{

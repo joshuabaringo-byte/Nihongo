@@ -686,6 +686,18 @@ h3:first-child{margin-top:2px;}
 .knopf.warn{color:var(--rot);background:var(--rot-weich);}
 .knopf.voll{background:var(--gruen);color:var(--auf-gruen);}
 
+/* Konto: Eingabefelder (ab 16px, damit iOS beim Antippen nicht zoomt) und Meldung */
+.feld{
+  width:100%;background:var(--flaeche);color:var(--text);
+  border:0;border-radius:var(--r-s);
+  padding:13px 14px;font-size:1rem;margin-bottom:8px;
+  -webkit-appearance:none;appearance:none;
+}
+.feld::placeholder{color:var(--grau);}
+.kontomeldung{font-size:.85rem;line-height:1.5;color:var(--grau);margin:2px 2px 10px;}
+.kontomeldung:empty{margin:0;}
+.kontomeldung.fehler{color:var(--rot);}
+
 textarea{
   width:100%;min-height:96px;
   font-family:var(--mono);font-size:.7rem;line-height:1.5;
