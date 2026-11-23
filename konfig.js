@@ -7,6 +7,6 @@
    das Datenbank-Passwort. tests/konfig.test.js prüft das.
    Leer gelassen bleibt das Konto aus; die App läuft wie bisher ohne Anmeldung. */
 window.KOTOBA_KONFIG = {
-  supabaseUrl: "",
-  supabaseKey: ""
+  supabaseUrl: "https://idkgpaitqrhccbidzkde.supabase.co",
+  supabaseKey: "sb_publishable__ty4Tae_HVUGE88YqkXAwA_477tpc2z"
 };
