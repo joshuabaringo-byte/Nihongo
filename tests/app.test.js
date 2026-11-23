@@ -872,6 +872,23 @@ function server(){
     const UID = "6f1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
     const GERAET = "11111111-2222-4333-8444-555555555555";
 
+    // 0. konfig.js aus dem Repo passt zu konto.js: eingerichtet -> Formular, leer -> Hinweis
+    {
+      const c0 = await profil();
+      let bib0 = 0;
+      c0.on("request", r => { if(r.url().indexOf("/supabase-js/") >= 0) bib0++; });
+      const p0 = await seite(c0);
+      await setze(p0, { "kotoba-einst": EINST });
+      const k0 = await p0.evaluate(() => window.KOTOBA_KONFIG || {});
+      await einstellungen(p0);
+      const formular = await sichtbar(p0, "#kontoEmail");
+      pruefe("konfig.js aus dem Repo: " + (k0.supabaseUrl ? "eingerichtet, Anmeldeformular da" : "leer, Hinweis \"nicht eingerichtet\""),
+        k0.supabaseUrl ? formular : !formular && /nicht eingerichtet/i.test(await text(p0, "#konto") || ""), String(k0.supabaseUrl));
+      pruefe("konfig.js aus dem Repo: beim Start keine Bibliothek, keine Fehler der Seite", bib0 === 0 && p0.fehler.length === 0,
+        bib0 + " " + p0.fehler.join(" | "));
+      await c0.close();
+    }
+
     // 1. Nicht eingerichtet: kein Formular, keine Bibliothek
     let ctx = await kontext(LEER), page = await seite(ctx);
     await setze(page, { "kotoba-einst": EINST });

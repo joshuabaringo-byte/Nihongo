@@ -1,11 +1,11 @@
 /* Service Worker: hält die App offline verfügbar.
    Bei jeder Änderung an den Dateien die VERSION erhöhen, zusammen mit der
-   sichtbaren Version unter "Über" in index.html (0.32 Beta -> kotoba-0.32-beta).
+   sichtbaren Version unter "Über" in index.html (0.33 Beta -> kotoba-0.33-beta).
    tests/version.test.js prüft, dass beide zusammenpassen.
    Die Supabase-Bibliothek (supabase-js/) steht absichtlich nicht in der
    Liste: Sie wird nur geladen, wenn jemand ein Konto benutzt, und landet
    dann über den Abruf unten im Offline-Speicher. */
-var VERSION = "kotoba-0.32-beta";
+var VERSION = "kotoba-0.33-beta";
 var DATEIEN = [
   "./",
   "./index.html",
